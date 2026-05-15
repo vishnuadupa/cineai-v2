@@ -57,7 +57,7 @@ function LeaderCircle({ count }: { count: number }) {
 }
 
 export function LoadingStage() {
-  const [count, setCount] = useState(5)
+  const [count, setCount] = useState(20)
   const [statusIdx, setStatusIdx] = useState(0)
 
   useEffect(() => {
