@@ -1,182 +1,203 @@
-# 🎬 CineAI — Movie Recommendation Engine
+# 🎬 CineAI
 
-LLM-powered movie recommendations. Tell it your mood. Get 5 tailored picks with AI reasoning, personalized by your preference history.
+> *"Tell me how you feel. I'll find your film."*
 
-**Live demo:** _coming after Vercel deploy_
+CineAI is an AI-powered movie recommendation engine that reads your mood, your taste, and what you're feeling tonight — then hands you six films curated just for that moment. No browsing. No endless scrolling. No algorithm optimising for watch time. Just the right film, right now.
 
----
-
-## Stack
-
-| Layer | Choice | Cost |
-|-------|--------|------|
-| Frontend | React 18 + Vite + Tailwind CSS | Free |
-| State | Zustand | Free |
-| Backend | Vercel Serverless Functions (Node.js 20) | Free forever |
-| Database | MongoDB Atlas M0 | Free forever (512MB) |
-| LLM | Google Gemini 1.5 Flash | Free (1,500 req/day) |
-| Movie data | TMDB API | Free, unlimited |
-| Hosting | Vercel Hobby | Free forever |
-| CI/CD | GitHub Actions | Free (public repos) |
-
-**Total monthly cost: $0**
+**Total monthly cost to run: $0**
 
 ---
 
-## Local Setup
+## ✨ How It Works
 
-### Prerequisites
+### 1. You Set the Scene
+Fill in up to six signals on the way in:
 
-- Node.js 20+
-- Free [MongoDB Atlas](https://cloud.mongodb.com) account — create an M0 cluster
-- Free [Google AI Studio](https://aistudio.google.com) API key
-- Free [TMDB](https://themoviedb.org/signup) API key
-- [Vercel CLI](https://vercel.com/docs/cli): `npm i -g vercel`
+| Signal | What it captures |
+|---|---|
+| 🎭 **Mood** | Melancholy · Thrilled · Curious · Comfort · Awe · Unsettled · Tender · Playful |
+| 🎬 **Genres** | 17 options — pick one or stack them |
+| 📅 **Era** | Any era · Last 5 years · 2010s · Pre-2000 classics |
+| 💛 **Films you've loved** | Add titles you adore — these shape the DNA of results |
+| ✍️ **What you're feeling** | Free text, up to 500 chars — the more honest, the better |
+| 🔞 **Adult content** | Off by default, explicitly opt-in |
 
-### 1. Clone and install
+### 2. Gemini Reads Between the Lines
+Your signals get crafted into a rich, context-aware prompt and fired at **Google Gemini 2.5 Flash**. Gemini generates **9 film candidates** — each scored by emotional fit, kept tonally consistent with your liked films, and cross-checked against what it already recommended you in past sessions.
+
+### 3. TMDB Verifies the Results
+Every Gemini suggestion gets looked up on **The Movie Database**. Real posters, real ratings, real cast and director data get attached. Films whose TMDB-verified genres don't match what you asked for get quietly filtered out. The best **6** make the cut.
+
+### 4. You Get Your Films
+Each card shows the poster, match %, year, runtime, and TMDB rating. Hover to reveal Gemini's reasoning — *why this film, for this exact mood*. Click for the full picture: director, cast, overview, all genre tags.
+
+---
+
+## 🧠 The Smart Bits
+
+### Genre Filtering That Actually Works
+Gemini is creative — sometimes too creative. After enrichment, TMDB genre tags act as a ground-truth check:
+
+- **Format genres** like Animation and Documentary require an exact TMDB match — no live-action films sneaking into an animated search
+- **Thematic genres** allow natural affinities — Horror welcomes Thriller, Action welcomes Adventure
+- **Adult toggle** is handled independently — turning it on opens the full catalogue without affecting genre logic
+
+### Memory Without a Login
+Every search is saved to MongoDB under an anonymous UUID stored in your browser's localStorage. When you return, Gemini knows what it already recommended you — no repeats, no account required, nothing personally linked to you.
+
+Sessions auto-expire after 30 days via a MongoDB TTL index. The free tier stays comfortable.
+
+### A Loading Screen That Respects You
+No fake progress bars. The counter counts **up** from 0 — you see exactly how long you've been waiting. Every 6 seconds, a real cinema fact rotates in to keep you company. The component just unmounts when results arrive — no timers to manage.
+
+---
+
+## 🏗️ Tech Stack
+
+```
+Frontend      React 18 + TypeScript + Vite
+Styling       Tailwind CSS  (custom cinema dark-brown theme)
+State         Zustand
+AI            Google Gemini 2.5 Flash
+Movie Data    TMDB API
+Database      MongoDB Atlas M0  (free forever, 512MB)
+Hosting       Vercel  (serverless functions + static CDN)
+CI/CD         GitHub Actions  (lint · typecheck · test on every push)
+```
+
+---
+
+## 🗂️ Project Structure
+
+```
+cineai-v2/
+├── api/                        Vercel serverless functions
+│   ├── recommend.ts            POST /api/recommend
+│   ├── history.ts              GET + DELETE /api/history
+│   └── _lib/
+│       ├── gemini.ts           Gemini API client with retry logic
+│       ├── tmdb.ts             TMDB enrichment + genre filtering
+│       ├── mongodb.ts          DB connection + Session schema
+│       └── promptBuilder.ts    History-aware prompt construction
+│
+├── src/
+│   ├── components/
+│   │   ├── InputStage.tsx      The six-signal form + hero carousel
+│   │   ├── LoadingStage.tsx    Cinematic loading screen + fun facts
+│   │   ├── ResultsStage.tsx    Film grid with staggered animation
+│   │   ├── MovieCard.tsx       Poster card with hover reveal
+│   │   ├── DetailOverlay.tsx   Full film detail modal
+│   │   ├── ChipGroup.tsx       Reusable mood / genre chip selector
+│   │   ├── FixedBackdrop.tsx   Parallax hero backdrop
+│   │   └── CineLogo.tsx        Brand mark
+│   ├── data/
+│   │   └── heroFilms.ts        Curated hero carousel + mood/genre data
+│   ├── store/
+│   │   └── useRecsStore.ts     Zustand global state
+│   └── utils/
+│       ├── userId.ts           Anonymous UUID management
+│       └── cn.ts               Tailwind class utility
+│
+├── .github/workflows/ci.yml    Lint · typecheck · test gate
+├── vercel.json                 SPA routing + security headers
+└── .env.example                Environment variable template
+```
+
+---
+
+## 🚀 Running Locally
 
 ```bash
-git clone https://github.com/vishnuadupa/movie-rec-engine
-cd movie-rec-engine
+# 1. Clone and install
+git clone https://github.com/vishnuadupa/cineai-v2.git
+cd cineai-v2
 npm install
-```
 
-### 2. Configure environment
+# 2. Set up environment variables
+cp .env.example .env
+# Fill in your keys (see below)
 
-```bash
-cp .env.example .env.local
-```
-
-Open `.env.local` and fill in:
-
-```bash
-MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/movie-recs
-GEMINI_API_KEY=AIza...
-TMDB_API_KEY=abc123...
-FRONTEND_URL=http://localhost:5173
-```
-
-### 3. Run locally
-
-```bash
+# 3. Start the dev server
 npm run dev
+# Frontend: http://localhost:5173
+# API functions: proxied automatically through Vite
 ```
 
-- Frontend: `http://localhost:5173`
-- API functions: proxied through Vite dev server
+### Environment Variables
 
-### 4. Run tests
-
-```bash
-npm run test
-```
-
-### 5. Deploy to Vercel
-
-```bash
-# One-time setup
-vercel login
-vercel link
-
-# Add env vars (do this once)
-vercel env add MONGODB_URI
-vercel env add GEMINI_API_KEY
-vercel env add TMDB_API_KEY
-vercel env add FRONTEND_URL
-
-# Deploy
-vercel --prod
-```
-
-Or connect the GitHub repo to Vercel for automatic deploys on every push.
+| Variable | Where to get it |
+|---|---|
+| `MONGODB_URI` | MongoDB Atlas → Connect → Drivers |
+| `GEMINI_API_KEY` | aistudio.google.com → Get API Key |
+| `TMDB_API_KEY` | themoviedb.org → Settings → API → Developer |
+| `FRONTEND_URL` | `http://localhost:5173` for local · your Vercel URL for production |
 
 ---
 
-## Project Structure
-
-```
-movie-rec-engine/
-├── api/                        ← Vercel Serverless Functions
-│   ├── recommend.ts            → POST /api/recommend
-│   ├── history.ts              → GET + DELETE /api/history
-│   └── _lib/                   → shared (not exposed as routes)
-│       ├── mongodb.ts          → Atlas singleton + Session schema
-│       ├── gemini.ts           → Gemini Flash client + retry
-│       ├── tmdb.ts             → movie search + poster enrichment
-│       └── promptBuilder.ts    → history-aware prompt construction
-│
-├── src/                        ← React frontend
-│   ├── App.tsx                 → main layout + orchestration
-│   ├── components/             → MoodSelector, GenrePicker, etc.
-│   ├── store/useRecsStore.ts   → Zustand global state
-│   ├── api/client.ts           → Axios (relative URLs only)
-│   └── utils/                  → userId (localStorage UUID), cn
-│
-├── .github/workflows/ci.yml   ← lint + typecheck + test gate
-├── vercel.json                 ← SPA routing + function config
-└── .env.example                ← env var template
-```
-
----
-
-## API
+## 📡 API Reference
 
 ### `POST /api/recommend`
+Accepts mood, genres, era, adult flag, free-text feeling, and liked films.  
+Returns 6 enriched film recommendations with poster, cast, director, genres, TMDB rating, and Gemini reasoning.
 
-```json
-{
-  "userId": "uuid-from-localstorage",
-  "mood": "melancholic but hopeful",
-  "genres": ["drama", "sci-fi"],
-  "recentWatches": ["Interstellar", "Arrival"],
-  "freeText": "something like Interstellar but more emotional"
-}
-```
+### `GET /api/history?userId=<uuid>`
+Returns up to 20 past sessions for a user (capped server-side).
 
-Returns 5 recommendations with reasoning, poster URL, TMDB rating, and mood match score.
-
-### `GET /api/history?userId=xxx&limit=5`
-
-Returns the user's last N sessions.
-
-### `DELETE /api/history?userId=xxx`
-
-Clears all sessions for the user.
+### `DELETE /api/history?userId=<uuid>`
+Clears all history for a user.
 
 ---
 
-## How Personalization Works
+## 🔒 Security
 
-No user accounts. Personalization is built on a UUID stored in `localStorage`.
-
-Every recommendation session is saved to MongoDB with a 30-day TTL (auto-expiry keeps the free tier comfortable). When you make a new request, the last 3 sessions are injected into the Gemini prompt as context — so the AI avoids repeating suggestions and understands your evolving taste.
-
----
-
-## Resume Bullets
-
-```
-AI Movie Recommendation Engine  |  React · Node.js · MongoDB · Gemini API · Vercel
-
-• Architected end-to-end LLM-powered recommendation system — natural language inputs
-  produce tailored picks with per-film reasoning via Google Gemini Flash API
-
-• Engineered serverless backend (Vercel Functions, Node.js 20 + TypeScript) with
-  structured JSON output parsing, exponential backoff on rate limits, and MongoDB
-  Atlas for persistent cross-session preference profiling
-
-• Implemented context-aware prompt engineering — injects last 3 user sessions as
-  LLM context for personalization without requiring user accounts
-
-• Built CI/CD pipeline with GitHub Actions (ESLint, tsc, Vitest) and Vercel GitHub
-  integration for zero-config continuous deployment
-
-• Architected for $0/month: Vercel Hobby (compute + CDN), MongoDB Atlas M0 (512MB
-  free forever), Gemini Flash (1,500 req/day free), TMDB (unlimited free)
-```
+- UUID v4 format validated on every API request
+- IP-based rate limiting on the recommend endpoint (10 req / hr)
+- CORS restricted to configured `FRONTEND_URL` only
+- Server-side input length limits on all user-supplied text
+- API keys passed via request headers — never in URLs or logs
+- Security headers set globally: CSP · X-Frame-Options · nosniff · Referrer-Policy
+- MongoDB sessions auto-expire after 30 days (TTL index)
+- Generic error messages — no internal stack traces or credentials leak to clients
 
 ---
 
-## License
+## 🎡 The Hero Carousel
 
-MIT
+The landing page rotates through a hand-picked selection of films — each chosen to represent a different mood the app can capture. Backdrops are full-width TMDB images that blur and parallax as you scroll down to the form. Every film in the carousel has a short poetic *"why"* phrase written for it.
+
+---
+
+## 🎞️ Fun Facts in the Loading Screen
+
+The loading screen rotates through 20 real cinema facts while Gemini works. A small thing — but it turns a 15-second wait into something that feels intentional rather than broken.
+
+A few favourites:
+- *The roar of the T-Rex in Jurassic Park is a baby elephant mixed with a tiger and alligator.*
+- *Stanley Kubrick required 127 takes for a single scene in The Shining.*
+- *The Wilhelm Scream has appeared in over 400 films since 1951.*
+
+---
+
+## 💸 Cost Breakdown
+
+| Service | Free Tier |
+|---|---|
+| Vercel | Unlimited deployments, 100GB bandwidth/month |
+| MongoDB Atlas M0 | 512MB storage, forever free |
+| Gemini 2.5 Flash | 1,500 requests/day, 1M tokens/day |
+| TMDB API | Unlimited requests |
+| GitHub Actions | Free on public repos |
+
+**Running total: $0/month**
+
+---
+
+## 📜 License
+
+MIT — build something great with it.
+
+---
+
+<p align="center">
+  <em>Built for the feeling of watching a great film for the very first time.</em>
+</p>
