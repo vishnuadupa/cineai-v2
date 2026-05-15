@@ -104,20 +104,6 @@ export function DetailOverlay({ movie, onClose }: Props) {
             ))}
           </div>
 
-          {/* Actions */}
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button style={{
-              flex: 1, padding: '14px 20px', borderRadius: 10, border: 'none',
-              background: 'linear-gradient(135deg, #f4a261, #e76f8f)',
-              color: '#1a0e1d', fontSize: 14, fontWeight: 600, cursor: 'pointer',
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              fontFamily: 'Inter Tight, sans-serif',
-            }}>
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg>
-              Watch trailer
-            </button>
-            <button style={{ padding: '14px 20px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.8)', fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'Inter Tight, sans-serif' }}>+ Watchlist</button>
-          </div>
         </div>
 
         {/* Close */}
