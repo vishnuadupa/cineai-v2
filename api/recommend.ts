@@ -6,20 +6,45 @@ import { buildPrompt, type RecommendRequest } from './_lib/promptBuilder'
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 
+// UUID v4 validation
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+// Simple in-memory rate limiter (best-effort — resets on cold start)
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
+const RATE_LIMIT    = 10
+const RATE_WINDOW   = 60 * 60 * 1000 // 1 hour
+
+function checkRateLimit(ip: string): boolean {
+  const now   = Date.now()
+  const entry = rateLimitMap.get(ip)
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW })
+    return true
+  }
+  if (entry.count >= RATE_LIMIT) return false
+  entry.count++
+  return true
+}
+
+// C2 fix: restrict CORS to own domain instead of wildcard
 function setCORS(res: VercelResponse): void {
-  res.setHeader('Access-Control-Allow-Origin', '*')
+  const origin = process.env.FRONTEND_URL ?? 'http://localhost:5173'
+  res.setHeader('Access-Control-Allow-Origin', origin)
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
 }
 
+// H1 + M2 fix: enforce length limits and UUID format
 function isValidRequest(body: unknown): body is RecommendRequest {
   if (!body || typeof body !== 'object') return false
   const b = body as Record<string, unknown>
   return (
-    typeof b.userId  === 'string' && b.userId.trim().length > 0 &&
-    typeof b.feeling === 'string' && b.feeling.trim().length > 0 &&
-    Array.isArray(b.genres) &&
-    Array.isArray(b.liked)
+    typeof b.userId  === 'string' && UUID_RE.test(b.userId) &&
+    typeof b.feeling === 'string' && b.feeling.trim().length > 0 && b.feeling.length <= 500 &&
+    Array.isArray(b.genres) && b.genres.length <= 20 &&
+    (b.genres as unknown[]).every(g => typeof g === 'string' && g.length <= 100) &&
+    Array.isArray(b.liked) && b.liked.length <= 20 &&
+    (b.liked as unknown[]).every(l => typeof l === 'string' && l.length <= 100)
   )
 }
 
@@ -27,8 +52,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   setCORS(res)
   if (req.method === 'OPTIONS') { res.status(200).end(); return }
   if (req.method !== 'POST')    { res.status(405).json({ error: 'method_not_allowed' }); return }
+
+  // H3 fix: rate limit by IP
+  const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ?? 'unknown'
+  if (!checkRateLimit(ip)) {
+    res.status(429).json({ error: 'rate_limit', message: 'Too many requests. Please try again later.' })
+    return
+  }
+
   if (!isValidRequest(req.body)) {
-    res.status(400).json({ error: 'invalid_request', message: 'userId and feeling required' })
+    res.status(400).json({ error: 'invalid_request', message: 'Invalid request parameters' })
     return
   }
 
@@ -37,19 +70,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   try {
     await connectDB()
 
-    // Get history for context
     const history = await Session.find({ userId: request.userId }).sort({ createdAt: -1 }).limit(5).lean()
-
-    // Build prompt with all new fields
     const userPrompt = buildPrompt(request, history as any)
-
-    // Call Gemini
     const geminiResponse = await getRecommendations(userPrompt)
-
-    // Enrich with TMDB — now returns full shape with runtime, director, cast, backdrop
     const enriched = await enrichWithTMDB(geminiResponse.recommendations)
 
-    // Save session — store both old and new field names for backwards compatibility
     const session = await Session.create({
       userId:    request.userId,
       expiresAt: new Date(Date.now() + THIRTY_DAYS_MS),
@@ -59,25 +84,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
         era:           request.era,
         adult:         request.adult,
         feeling:       request.feeling,
-        freeText:      request.feeling,   // backwards compat
+        freeText:      request.feeling,
         recentWatches: request.liked,
         liked:         request.liked,
       },
       recommendations: enriched.map(r => ({
-        title:    r.title,
-        year:     r.year,
-        runtime:  r.runtime,
-        rating:   r.rating,
-        match:    r.match,
-        genres:   r.genres,
-        director: r.director,
-        cast:     r.cast,
-        overview: r.overview,
-        reason:   r.reason,
-        poster:   r.poster,
-        backdrop: r.backdrop,
-        accent:   r.accent,
-        // also store old field names
+        title:          r.title,
+        year:           r.year,
+        runtime:        r.runtime,
+        rating:         r.rating,
+        match:          r.match,
+        genres:         r.genres,
+        director:       r.director,
+        cast:           r.cast,
+        overview:       r.overview,
+        reason:         r.reason,
+        poster:         r.poster,
+        backdrop:       r.backdrop,
+        accent:         r.accent,
         synopsis:       r.overview,
         reasoning:      r.reason,
         moodMatchScore: r.match,
@@ -90,9 +114,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
   } catch (err: unknown) {
     const error = err as Error & { status?: number }
-    console.error('RECOMMEND ERROR:', error.message, error.stack)
+    // L3 fix: log message only, no stack trace with file paths
+    console.error('RECOMMEND ERROR:', error.message)
     if (error.status === 429) { res.status(429).json({ error: 'rate_limit', message: 'Too many requests' }); return }
     if (error.status === 503) { res.status(503).json({ error: 'service_unavailable', message: 'Gemini is overloaded' }); return }
-    res.status(500).json({ error: 'internal_error', message: error.message })
+    // H2 fix: never leak internal error.message to the client
+    res.status(500).json({ error: 'internal_error', message: 'An unexpected error occurred' })
   }
 }

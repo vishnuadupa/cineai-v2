@@ -25,12 +25,15 @@ export function buildPrompt(request: RecommendRequest, history: HistorySession[]
   const { mood, genres, era, adult, feeling, liked } = request
   const recentHistory = history.slice(-3)
 
+  // M1 fix: sanitize and truncate history data before injecting into prompt
+  const sanitize = (s: string, max: number) => s.slice(0, max).replace(/["`\\]/g, "'")
+
   let historyContext = ''
   if (recentHistory.length > 0) {
     const lines = recentHistory.map(s => {
       const date = new Date(s.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      const titles = s.recommendations.slice(0, 3).map(r => r.title).join(', ')
-      const freeText = s.input.feeling ?? s.input.freeText ?? ''
+      const titles = s.recommendations.slice(0, 3).map(r => sanitize(r.title, 80)).join(', ')
+      const freeText = sanitize(s.input.feeling ?? s.input.freeText ?? '', 200)
       return `- ${date}: asked for "${freeText}" and got: ${titles}`
     })
     historyContext = `\n\nUser recent sessions (avoid repeating):\n${lines.join('\n')}`
@@ -40,7 +43,7 @@ export function buildPrompt(request: RecommendRequest, history: HistorySession[]
     ? 'You MAY include films with mature content, erotic themes, explicit romance, nudity, or graphic violence if they fit the mood. NC-17 and unrated films are allowed.'
     : 'Do NOT include NC-17 or films with explicit sexual content. Keep suitable for general audiences.'
 
-  return `You are a world-class film curator. Return EXACTLY 12 film recommendations as JSON.
+  return `You are a world-class film curator. Return EXACTLY 6 film recommendations as JSON.
 
 User signals:
 - Mood: ${mood}
@@ -50,7 +53,7 @@ User signals:
 - What they want tonight: "${feeling}"${historyContext}
 
 RULES:
-1. Return EXACTLY 12 recommendations - not 5, not 10, exactly 12
+1. Return EXACTLY 6 recommendations - not 3, not 10, exactly 6
 2. ${adultInstruction}
 3. Do not recommend films the user already listed as loved
 4. Order by best emotional fit first

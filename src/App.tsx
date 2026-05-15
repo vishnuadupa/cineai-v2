@@ -78,8 +78,6 @@ export default function App() {
 
       {/* Global animation keyframes */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&display=swap');
-
         :root {
           --accent: #f4a261;
           --rose:   #e76f8f;

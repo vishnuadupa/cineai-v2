@@ -15,13 +15,14 @@ CRITICAL: Respond ONLY with valid JSON. No markdown, no backticks. Schema:
 export async function getRecommendations(userPrompt: string, retries = 3): Promise<GeminiResponse> {
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) throw new Error('GEMINI_API_KEY not set')
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`
+  // M5 fix: pass API key via header instead of URL query param to avoid logging in infra
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`
   let lastError: Error | null = null
   for (let attempt = 0; attempt <= retries; attempt++) {
     if (attempt > 0) await new Promise(r => setTimeout(r, 2000 * attempt))
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
         systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },

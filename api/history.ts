@@ -19,9 +19,11 @@ export default async function handler(
     return
   }
 
+  // M2 fix: validate userId as UUID v4 format
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
   const userId = req.query.userId as string | undefined
-  if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
-    res.status(400).json({ error: 'invalid_request', message: 'userId query param required' })
+  if (!userId || typeof userId !== 'string' || !UUID_RE.test(userId)) {
+    res.status(400).json({ error: 'invalid_request', message: 'Valid userId required' })
     return
   }
 

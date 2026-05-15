@@ -98,7 +98,7 @@ export function InputStage({ onSubmit }: Props) {
             "{p.why}"
           </p>
           <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14, fontWeight: 300, maxWidth: 480, marginTop: 22 }}>
-            One of twelve waiting for you tonight. Scroll to set the scene — or roll now.
+            One of six waiting for you tonight. Scroll to set the scene — or roll now.
           </p>
         </div>
 
@@ -133,7 +133,7 @@ export function InputStage({ onSubmit }: Props) {
             <span style={{ background: 'linear-gradient(135deg, #f4a261, #e76f8f, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontStyle: 'italic' }}>scene</span>.
           </h2>
           <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 17, marginTop: 18, maxWidth: 540, fontWeight: 300, lineHeight: 1.55 }}>
-            A few honest signals. Gemini reads between the lines and casts twelve films.
+            A few honest signals. Gemini reads between the lines and casts six films.
           </p>
         </div>
 
@@ -172,8 +172,8 @@ export function InputStage({ onSubmit }: Props) {
           >
             <textarea value={feeling} onChange={e => setFeeling(e.target.value)}
               placeholder="Rainy day, just got off a long shift. Want something slow, maybe gorgeous, but not depressing."
-              rows={3} style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', color: '#f3ece1', fontFamily: 'inherit', fontSize: 17, lineHeight: 1.5, padding: '18px 20px', resize: 'none', fontWeight: 300, boxSizing: 'border-box' }}/>
-            <div style={{ position: 'absolute', right: 14, bottom: 12, fontSize: 11, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>{feeling.length} / 280</div>
+              rows={3} maxLength={500} style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', color: '#f3ece1', fontFamily: 'inherit', fontSize: 17, lineHeight: 1.5, padding: '18px 20px', resize: 'none', fontWeight: 300, boxSizing: 'border-box' }}/>
+            <div style={{ position: 'absolute', right: 14, bottom: 12, fontSize: 11, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>{feeling.length} / 500</div>
           </div>
         </Field>
 
@@ -195,7 +195,7 @@ export function InputStage({ onSubmit }: Props) {
             onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-3px) scale(1.02)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 30px 70px -10px rgba(231,111,143,.6), 0 0 0 1px rgba(255,255,255,.15) inset' }}
             onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'none'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 20px 50px -10px rgba(244,162,97,.5), 0 0 0 1px rgba(255,255,255,.1) inset' }}
           >
-            <span>Find my twelve films</span>
+            <span>Find my six films</span>
             <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
               <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
