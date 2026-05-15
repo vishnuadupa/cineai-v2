@@ -36,23 +36,36 @@ function filterAndTrim(
 ): import('./_lib/tmdb').EnrichedMovie[] {
   let results = films
 
-  // If user picked specific genres, filter out films with zero genre overlap
   if (requestedGenres.length > 0) {
-    // Build the full set of acceptable genres (requested + their natural affinities)
-    const acceptable = new Set(requestedGenres)
+    // Build affinity set for fallback (adjacent genres e.g. Action→Adventure)
+    const affinities = new Set<string>()
     requestedGenres.forEach(g => {
       const related = GENRE_AFFINITIES[g] ?? []
-      related.forEach(r => acceptable.add(r))
+      related.forEach(r => affinities.add(r))
     })
 
     results = results.filter(film => {
-      if (film.genres.length === 0) return true // no TMDB genre data — keep it, don't penalise
-      return film.genres.some(g => acceptable.has(g))
+      if (film.genres.length === 0) return true // no TMDB data — give benefit of doubt
+
+      // PRIMARY: film must have at least one of the user's exact requested genres
+      const directMatch = film.genres.some(g => requestedGenres.includes(g))
+      if (directMatch) return true
+
+      // SECONDARY: allow affinity genres ONLY if they don't contradict the request
+      // e.g. user wants Horror → Thriller is fine. But Animation→live action Family is NOT.
+      const affinityMatch = film.genres.some(g => affinities.has(g))
+
+      // Block affinity-only matches when user picked a format-defining genre
+      // (Animation, Documentary) — these are specific formats, not just themes
+      const formatGenres = ['Animation', 'Documentary']
+      const userPickedFormat = requestedGenres.some(g => formatGenres.includes(g))
+      if (userPickedFormat) return false // must be exact match for format genres
+
+      return affinityMatch
     })
   }
 
-  // Adult toggle: only strip TMDB-tagged explicit "Adult" films when adult=false
-  // Horror, Thriller etc. are genres — not adult content — so they are NOT touched here
+  // Adult toggle: only strip TMDB-tagged explicit "Adult" content when adult=false
   if (!adult) {
     results = results.filter(film => !film.genres.includes('Adult'))
   }

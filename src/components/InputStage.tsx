@@ -69,9 +69,6 @@ export function InputStage({ onSubmit }: Props) {
         {/* Topbar */}
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '28px 56px' }}>
           <Brand />
-          <div style={{ display: 'flex', gap: 28, color: 'rgba(255,255,255,0.4)', fontSize: 13, alignItems: 'center' }}>
-            <div style={{ width: 32, height: 32, borderRadius: 999, background: 'linear-gradient(135deg, #e76f8f, #8b5cf6)' }}/>
-          </div>
         </div>
 
         {/* Hero copy */}
