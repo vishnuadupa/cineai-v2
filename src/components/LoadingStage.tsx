@@ -57,7 +57,7 @@ function LeaderCircle({ count }: { count: number }) {
 }
 
 export function LoadingStage() {
-  const [count, setCount] = useState(10)
+  const [count, setCount] = useState(17)
   const [statusIdx, setStatusIdx] = useState(0)
 
   useEffect(() => {
@@ -106,7 +106,7 @@ export function LoadingStage() {
           {status}<span style={{ animation: 'blink 1s steps(2,end) infinite', color: '#f4a261' }}>…</span>
         </div>
         <div style={{ color: 'rgba(254,244,212,.45)', fontSize: 11, letterSpacing: '.2em', marginTop: 14, fontFamily: 'monospace' }}>
-          REEL 01 · {String(6 - count).padStart(2, '0')} / 05
+          REEL 01 · {String(Math.max(0, 17 - count)).padStart(2, '0')} / 16
         </div>
       </div>
       <div className="film-grain"/>

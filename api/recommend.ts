@@ -146,7 +146,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
         recentWatches: request.liked,
         liked:         request.liked,
       },
-      recommendations: enriched.map(r => ({
+      recommendations: filtered.map(r => ({
         title:          r.title,
         year:           r.year,
         runtime:        r.runtime,
@@ -168,7 +168,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       })),
     })
 
-    res.status(200).json({ sessionId: String(session._id), recommendations: enriched })
+    res.status(200).json({ sessionId: String(session._id), recommendations: filtered })
 
   } catch (err: unknown) {
     const error = err as Error & { status?: number }
