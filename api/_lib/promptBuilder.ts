@@ -2,10 +2,10 @@ export interface RecommendRequest {
   userId:   string
   mood:     string
   genres:   string[]
-  era:      string        // "any" | "new" | "2010s" | "classics"
+  era:      string
   adult:    boolean
-  feeling:  string        // free text (was freeText)
-  liked:    string[]      // film titles (was recentWatches)
+  feeling:  string
+  liked:    string[]
 }
 
 export interface HistorySession {
@@ -16,7 +16,7 @@ export interface HistorySession {
 
 const ERA_MAP: Record<string, string> = {
   any:      'any era',
-  new:      'released in the last 5 years (2020–2025)',
+  new:      'released in the last 5 years (2020-2025)',
   '2010s':  'released between 2010 and 2019',
   classics: 'released before 2000',
 }
@@ -33,23 +33,31 @@ export function buildPrompt(request: RecommendRequest, history: HistorySession[]
       const freeText = s.input.feeling ?? s.input.freeText ?? ''
       return `- ${date}: asked for "${freeText}" → got: ${titles}`
     })
-    historyContext = `\n\nUser's recent sessions (avoid repeating, understand evolving taste):\n${lines.join('\n')}`
+    historyContext = `\n\nUser recent sessions (avoid repeating, understand evolving taste):\n${lines.join('\n')}`
   }
 
-  return `You are a world-class film curator. A user is asking for film recommendations.
+  const adultInstruction = adult
+    ? 'You MAY include films with mature content, erotic themes, nudity, graphic violence, or adult romantic content if they genuinely fit the mood. Include NC-17 and unrated films if relevant.'
+    : 'Do NOT include films rated NC-17 or with explicit sexual content. Keep recommendations suitable for general audiences.'
+fix: 12 films + adult toggle mature/erotic content  return `You are a world-class film curator. A user wants exactly 12 film recommendations.
 
 User signals:
 - Mood: ${mood}
 - Preferred genres: ${genres.length > 0 ? genres.join(', ') : 'no preference'}
 - Era preference: ${ERA_MAP[era] ?? era}
-- Films they've loved: ${liked.length > 0 ? liked.join(', ') : 'none provided'}
+- Films they have loved: ${liked.length > 0 ? liked.join(', ') : 'none provided'}
 - Free-text context: "${feeling}"
-- Include 18+ titles: ${adult ? 'yes' : 'no — keep it suitable for all audiences'}
+- Adult content: ${adult ? 'YES - include mature/erotic/adult content if it fits' : 'NO - keep it clean'}
 ${historyContext}
 
-Generate exactly 5 film recommendations. For each film reference SPECIFIC themes, tone, emotional beats, and cinematographic qualities. When the user has loved films, draw explicit connections. moodMatchScore = 0-100, how closely this film matches their EXACT request tonight.
+IMPORTANT: You MUST return EXACTLY 12 recommendations. Not 5, not 10 - exactly 12.
 
-${!adult ? 'Do not include films with NC-17 ratings or explicit adult content.' : ''}
+${adultInstruction}
+
+For each film reference SPECIFIC themes, tone, emotional beats, and cinematographic qualities. When the user has loved films, draw explicit connections. moodMatchScore = 0-100 how closely this film matches their EXACT request tonight.
+
 Do not recommend films the user has already listed as loved.
-Order best emotional fit first.`
+Order best emotional fit first.
+
+Return exactly 12 films as a JSON array.`
 }
