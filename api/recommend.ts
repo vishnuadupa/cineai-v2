@@ -6,6 +6,60 @@ import { buildPrompt, type RecommendRequest } from './_lib/promptBuilder'
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 
+// Genres that naturally go together — so related picks don't get filtered out
+// e.g. user picks Action → Adventure/Thriller are fine. User picks Animation → Family/Fantasy are fine.
+const GENRE_AFFINITIES: Record<string, string[]> = {
+  'Action':           ['Adventure', 'Thriller', 'Science Fiction', 'Crime'],
+  'Adventure':        ['Action', 'Fantasy', 'Family', 'Animation', 'Science Fiction'],
+  'Animation':        ['Family', 'Adventure', 'Comedy', 'Fantasy'],
+  'Comedy':           ['Romance', 'Family', 'Animation', 'Drama'],
+  'Crime':            ['Thriller', 'Drama', 'Mystery', 'Action'],
+  'Drama':            ['Romance', 'History', 'Crime', 'Mystery', 'Music'],
+  'Family':           ['Animation', 'Adventure', 'Comedy', 'Fantasy'],
+  'Fantasy':          ['Adventure', 'Animation', 'Family', 'Science Fiction'],
+  'History':          ['Drama', 'War', 'Documentary'],
+  'Horror':           ['Thriller', 'Mystery', 'Science Fiction'],
+  'Music':            ['Drama', 'Documentary', 'Comedy'],
+  'Mystery':          ['Thriller', 'Crime', 'Horror', 'Drama'],
+  'Romance':          ['Drama', 'Comedy'],
+  'Science Fiction':  ['Action', 'Adventure', 'Thriller', 'Fantasy', 'Horror'],
+  'Thriller':         ['Horror', 'Mystery', 'Crime', 'Action', 'Drama'],
+  'War':              ['History', 'Drama', 'Action'],
+  'Western':          ['Action', 'Adventure', 'Drama'],
+  'Documentary':      ['History', 'Music'],
+}
+
+function filterAndTrim(
+  films: import('./_lib/tmdb').EnrichedMovie[],
+  requestedGenres: string[],
+  adult: boolean
+): import('./_lib/tmdb').EnrichedMovie[] {
+  let results = films
+
+  // If user picked specific genres, filter out films with zero genre overlap
+  if (requestedGenres.length > 0) {
+    // Build the full set of acceptable genres (requested + their natural affinities)
+    const acceptable = new Set(requestedGenres)
+    requestedGenres.forEach(g => {
+      const related = GENRE_AFFINITIES[g] ?? []
+      related.forEach(r => acceptable.add(r))
+    })
+
+    results = results.filter(film => {
+      if (film.genres.length === 0) return true // no TMDB genre data — keep it, don't penalise
+      return film.genres.some(g => acceptable.has(g))
+    })
+  }
+
+  // Adult toggle: only strip TMDB-tagged explicit "Adult" films when adult=false
+  // Horror, Thriller etc. are genres — not adult content — so they are NOT touched here
+  if (!adult) {
+    results = results.filter(film => !film.genres.includes('Adult'))
+  }
+
+  return results.slice(0, 6)
+}
+
 // UUID v4 validation
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -72,8 +126,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
     const history = await Session.find({ userId: request.userId }).sort({ createdAt: -1 }).limit(5).lean()
     const userPrompt = buildPrompt(request, history as any)
+    // Gemini returns 9 candidates
     const geminiResponse = await getRecommendations(userPrompt)
+    // TMDB enriches all 9 with real genres, ratings, posters
     const enriched = await enrichWithTMDB(geminiResponse.recommendations)
+    // Filter by TMDB genres vs what user actually asked for, then trim to 6
+    const filtered = filterAndTrim(enriched, request.genres, request.adult)
 
     const session = await Session.create({
       userId:    request.userId,

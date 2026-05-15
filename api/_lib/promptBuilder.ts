@@ -41,9 +41,13 @@ export function buildPrompt(request: RecommendRequest, history: HistorySession[]
 
   const adultInstruction = adult
     ? 'You MAY include films with mature content, erotic themes, explicit romance, nudity, or graphic violence if they fit the mood. NC-17 and unrated films are allowed.'
-    : 'Do NOT include NC-17 or films with explicit sexual content. Keep suitable for general audiences.'
+    : 'Do NOT include horror, slasher, gore, psychological horror, or any film primarily designed to frighten or disturb. Do NOT include NC-17 or films with explicit sexual content. Keep all recommendations family-friendly and emotionally safe.'
 
-  return `You are a world-class film curator. Return EXACTLY 6 film recommendations as JSON.
+  const toneInstruction = liked.length > 0
+    ? `IMPORTANT: The user listed films they love. Use these to infer their preferred tone, audience level, and style. If their liked films are family-friendly animated movies, do NOT recommend horror, dark thrillers, or adult dramas — stay tonally consistent with what they already love.`
+    : ''
+
+  return `You are a world-class film curator. Return EXACTLY 9 film recommendations as JSON.
 
 User signals:
 - Mood: ${mood}
@@ -53,10 +57,11 @@ User signals:
 - What they want tonight: "${feeling}"${historyContext}
 
 RULES:
-1. Return EXACTLY 6 recommendations - not 3, not 10, exactly 6
+1. Return EXACTLY 9 recommendations - not 6, not 12, exactly 9
 2. ${adultInstruction}
-3. Do not recommend films the user already listed as loved
-4. Order by best emotional fit first
-5. For each film reference specific themes, tone, and emotional beats
-6. moodMatchScore = 0-100 how closely it matches their exact request`
+3. ${toneInstruction}
+4. Do not recommend films the user already listed as loved
+5. Order by best emotional fit first
+6. For each film reference specific themes, tone, and emotional beats
+7. moodMatchScore = 0-100 how closely it matches their exact request`
         }
