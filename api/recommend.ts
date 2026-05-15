@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { connectDB, Session }  from './_lib/mongodb'
 import { getRecommendations }  from './_lib/gemini'
-import { enrichWithTMDB }      from './_lib/tmdb'
+import { enrichWithTMDB, type EnrichedMovie } from './_lib/tmdb'
 import { buildPrompt, type RecommendRequest } from './_lib/promptBuilder'
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
@@ -30,10 +30,10 @@ const GENRE_AFFINITIES: Record<string, string[]> = {
 }
 
 function filterAndTrim(
-  films: import('./_lib/tmdb').EnrichedMovie[],
+  films: EnrichedMovie[],
   requestedGenres: string[],
   adult: boolean
-): import('./_lib/tmdb').EnrichedMovie[] {
+): EnrichedMovie[] {
   let results = films
 
   if (requestedGenres.length > 0) {
