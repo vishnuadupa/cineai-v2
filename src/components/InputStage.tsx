@@ -25,7 +25,8 @@ export function InputStage({ onSubmit, onHistory, onWatchlist }: Props) {
   const [adult, setAdult] = useState(false)
   const [feeling, setFeeling] = useState('')
   const [liked, setLiked] = useState<string[]>([])
-  const [likedInput, setLikedInput] = useState('')
+  const [likedInput, setLikedInput]   = useState('')
+  const [feelingError, setFeelingError] = useState(false)
 
   // Auto-rotate hero
   useEffect(() => {
@@ -50,15 +51,22 @@ export function InputStage({ onSubmit, onHistory, onWatchlist }: Props) {
   }
 
   const addLiked = () => {
-    const t = likedInput.trim()
-    if (t && !liked.includes(t)) { setLiked([...liked, t]); setLikedInput('') }
+    const t = likedInput.trim().slice(0, 100)
+    if (t && !liked.includes(t) && liked.length < 10) {
+      setLiked([...liked, t])
+      setLikedInput('')
+    }
   }
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') { e.preventDefault(); addLiked() }
   }
 
-  const submit = () => onSubmit({ mood, genres, era, adult, feeling, liked })
+  const submit = () => {
+    if (!feeling.trim()) { setFeelingError(true); formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return }
+    setFeelingError(false)
+    onSubmit({ mood, genres, era, adult, feeling, liked })
+  }
 
   const p = HERO_FILMS[filmIdx]
   const genreOpts = GENRES.map(g => ({ id: g, label: g }))
@@ -180,21 +188,29 @@ export function InputStage({ onSubmit, onHistory, onWatchlist }: Props) {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, background: 'rgba(255,255,255,.025)', backdropFilter: 'blur(20px)', padding: '4px 4px 4px 16px', maxWidth: 480 }}>
             <span style={{ color: 'rgba(255,255,255,0.3)', marginRight: 10, fontSize: 14 }}>+</span>
-            <input value={likedInput} onChange={e => setLikedInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="Add a film…" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#f3ece1', fontFamily: 'inherit', fontSize: 15, padding: '10px 0' }}/>
-            <button onClick={addLiked} disabled={!likedInput.trim()} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: likedInput.trim() ? 'linear-gradient(135deg, #f4a261, #e76f8f)' : 'transparent', color: likedInput.trim() ? '#1a0e1d' : 'rgba(255,255,255,0.3)', fontSize: 13, fontWeight: 600, cursor: likedInput.trim() ? 'pointer' : 'default', fontFamily: 'inherit' }}>Add</button>
+            <input value={likedInput} onChange={e => setLikedInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="Add a film…" maxLength={100} style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#f3ece1', fontFamily: 'inherit', fontSize: 15, padding: '10px 0' }}/>
+            <button onClick={addLiked} disabled={!likedInput.trim() || liked.length >= 10} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: likedInput.trim() && liked.length < 10 ? 'linear-gradient(135deg, #f4a261, #e76f8f)' : 'transparent', color: likedInput.trim() && liked.length < 10 ? '#1a0e1d' : 'rgba(255,255,255,0.3)', fontSize: 13, fontWeight: 600, cursor: likedInput.trim() && liked.length < 10 ? 'pointer' : 'default', fontFamily: 'inherit' }}>Add</button>
           </div>
         </Field>
 
         <Field label="05" title="What are you feeling tonight?" subtitle="free text — extra context for Gemini">
-          <div style={{ position: 'relative', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, background: 'rgba(255,255,255,.025)', backdropFilter: 'blur(20px)', transition: 'border-color 200ms' }}
-            onFocus={e => (e.currentTarget as HTMLDivElement).style.borderColor = '#f4a261'}
-            onBlur={e => (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255,255,255,0.1)'}
+          <div style={{
+            position: 'relative', borderRadius: 16, background: 'rgba(255,255,255,.025)', backdropFilter: 'blur(20px)', transition: 'border-color 200ms',
+            border: feelingError ? '1px solid rgba(231,111,143,0.7)' : '1px solid rgba(255,255,255,0.1)',
+          }}
+            onFocus={e => { setFeelingError(false); (e.currentTarget as HTMLDivElement).style.borderColor = '#f4a261' }}
+            onBlur={e => (e.currentTarget as HTMLDivElement).style.borderColor = feelingError ? 'rgba(231,111,143,0.7)' : 'rgba(255,255,255,0.1)'}
           >
-            <textarea value={feeling} onChange={e => setFeeling(e.target.value)}
+            <textarea value={feeling} onChange={e => { setFeeling(e.target.value); if (e.target.value.trim()) setFeelingError(false) }}
               placeholder="Rainy day, just got off a long shift. Want something slow, maybe gorgeous, but not depressing."
               rows={3} maxLength={500} style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', color: '#f3ece1', fontFamily: 'inherit', fontSize: 17, lineHeight: 1.5, padding: '18px 20px', resize: 'none', fontWeight: 300, boxSizing: 'border-box' }}/>
             <div style={{ position: 'absolute', right: 14, bottom: 12, fontSize: 11, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>{feeling.length} / 500</div>
           </div>
+          {feelingError && (
+            <div style={{ marginTop: 8, fontSize: 12, color: '#e76f8f', fontFamily: 'monospace', letterSpacing: '0.05em' }}>
+              ↑ Tell us what you&apos;re feeling — Gemini needs this to pick the right films.
+            </div>
+          )}
         </Field>
 
         <Field label="06" title="Content filter">

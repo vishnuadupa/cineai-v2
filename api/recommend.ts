@@ -3,6 +3,7 @@ import { connectDB, Session }  from './_lib/mongodb'
 import { getRecommendations }  from './_lib/gemini'
 import { enrichWithTMDB, type EnrichedMovie } from './_lib/tmdb'
 import { buildPrompt, type RecommendRequest, type HistorySession } from './_lib/promptBuilder'
+import { makeRateLimiter, getIp } from './_lib/rateLimit'
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 
@@ -76,22 +77,12 @@ function filterAndTrim(
 // UUID v4 validation
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
-// Simple in-memory rate limiter (best-effort — resets on cold start)
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
-const RATE_LIMIT    = 10
-const RATE_WINDOW   = 60 * 60 * 1000 // 1 hour
+// 10 recommend requests per IP per hour (Gemini is expensive)
+const checkRateLimit = makeRateLimiter(10, 60 * 60 * 1000)
 
-function checkRateLimit(ip: string): boolean {
-  const now   = Date.now()
-  const entry = rateLimitMap.get(ip)
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW })
-    return true
-  }
-  if (entry.count >= RATE_LIMIT) return false
-  entry.count++
-  return true
-}
+// Allowlists for enum fields — stops arbitrary strings reaching the prompt
+const VALID_MOODS = new Set(['melancholy','thrilled','curious','comfort','awe','unsettled','tender','playful'])
+const VALID_ERAS  = new Set(['any','new','2010s','classics'])
 
 // C2 fix: restrict CORS to own domain instead of wildcard
 function setCORS(res: VercelResponse): void {
@@ -101,17 +92,24 @@ function setCORS(res: VercelResponse): void {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
 }
 
-// H1 + M2 fix: enforce length limits and UUID format
 function isValidRequest(body: unknown): body is RecommendRequest {
   if (!body || typeof body !== 'object') return false
   const b = body as Record<string, unknown>
   return (
+    // Identity
     typeof b.userId  === 'string' && UUID_RE.test(b.userId) &&
+    // Enum fields — must match the UI values exactly; stops arbitrary prompt injection
+    typeof b.mood    === 'string' && VALID_MOODS.has(b.mood) &&
+    typeof b.era     === 'string' && VALID_ERAS.has(b.era) &&
+    // Boolean — must be actual boolean, not a truthy string bypassing adult filter
+    typeof b.adult   === 'boolean' &&
+    // Free text — non-empty and length-capped
     typeof b.feeling === 'string' && b.feeling.trim().length > 0 && b.feeling.length <= 500 &&
-    Array.isArray(b.genres) && b.genres.length <= 20 &&
-    (b.genres as unknown[]).every(g => typeof g === 'string' && g.length <= 100) &&
-    Array.isArray(b.liked) && b.liked.length <= 20 &&
-    (b.liked as unknown[]).every(l => typeof l === 'string' && l.length <= 100)
+    // Arrays — capped count and per-item length
+    Array.isArray(b.genres) && b.genres.length <= 17 &&
+    (b.genres as unknown[]).every(g => typeof g === 'string' && g.length <= 50) &&
+    Array.isArray(b.liked) && b.liked.length <= 10 &&
+    (b.liked as unknown[]).every(l => typeof l === 'string' && l.trim().length > 0 && l.length <= 100)
   )
 }
 
@@ -120,8 +118,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   if (req.method === 'OPTIONS') { res.status(200).end(); return }
   if (req.method !== 'POST')    { res.status(405).json({ error: 'method_not_allowed' }); return }
 
-  // H3 fix: rate limit by IP
-  const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ?? 'unknown'
+  const ip = getIp(req.headers as Record<string, string | string[] | undefined>)
   if (!checkRateLimit(ip)) {
     res.status(429).json({ error: 'rate_limit', message: 'Too many requests. Please try again later.' })
     return
