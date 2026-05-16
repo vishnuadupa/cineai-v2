@@ -163,7 +163,7 @@ export function LoadingStage() {
           DID YOU KNOW
         </div>
         <div style={{ color: 'rgba(254,244,212,.6)', fontSize: 14, fontFamily: 'Georgia, serif', fontStyle: 'italic', lineHeight: 1.6 }}>
-          "{FUN_FACTS[factIdx]}"
+          {'"'}{FUN_FACTS[factIdx]}{'"'}
         </div>
       </div>
 

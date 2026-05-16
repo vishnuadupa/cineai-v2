@@ -76,7 +76,7 @@ export function MovieCard({ movie, index, onOpen }: Props) {
             marginTop: hovered ? 10 : 0,
           }}>
             <div style={{ fontSize: 14, color: '#f4a261', lineHeight: 1.35, marginBottom: 8, fontFamily: 'Georgia, serif', fontStyle: 'italic' }}>
-              "{movie.reason}"
+              {'"'}{movie.reason}{'"'}
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {movie.genres.slice(0, 3).map(g => (

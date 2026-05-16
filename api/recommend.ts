@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { connectDB, Session }  from './_lib/mongodb'
 import { getRecommendations }  from './_lib/gemini'
 import { enrichWithTMDB, type EnrichedMovie } from './_lib/tmdb'
-import { buildPrompt, type RecommendRequest } from './_lib/promptBuilder'
+import { buildPrompt, type RecommendRequest, type HistorySession } from './_lib/promptBuilder'
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 
@@ -138,7 +138,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     await connectDB()
 
     const history = await Session.find({ userId: request.userId }).sort({ createdAt: -1 }).limit(5).lean()
-    const userPrompt = buildPrompt(request, history as any)
+    const userPrompt = buildPrompt(request, history as unknown as HistorySession[])
     // Gemini returns 9 candidates
     const geminiResponse = await getRecommendations(userPrompt)
     // TMDB enriches all 9 with real genres, ratings, posters

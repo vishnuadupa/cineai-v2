@@ -7,9 +7,13 @@ import type { RecommendRequest } from '../api/client'
 
 type Params = Omit<RecommendRequest, 'userId'>
 
-interface Props { onSubmit: (p: Params) => void }
+interface Props {
+  onSubmit:    (p: Params) => void
+  onHistory?:  () => void
+  onWatchlist?: () => void
+}
 
-export function InputStage({ onSubmit }: Props) {
+export function InputStage({ onSubmit, onHistory, onWatchlist }: Props) {
   const formRef = useRef<HTMLDivElement>(null)
   const [filmIdx, setFilmIdx] = useState(0)
   const [scrollY, setScrollY] = useState(0)
@@ -67,15 +71,34 @@ export function InputStage({ onSubmit }: Props) {
       {/* ── HERO SECTION ── */}
       <section style={{ position: 'relative', height: '100vh', minHeight: 680, zIndex: 2 }}>
         {/* Topbar */}
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '28px 56px' }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '28px 40px' }}>
           <Brand />
+          <div style={{ display: 'flex', gap: 8 }}>
+            {onHistory && (
+              <button onClick={onHistory} style={topNavBtn}>
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                  <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4"/>
+                  <path d="M8 5v3.5l2 2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                </svg>
+                History
+              </button>
+            )}
+            {onWatchlist && (
+              <button onClick={onWatchlist} style={topNavBtn}>
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+                  <path d="M8 12l-4.5 2.4 1-5-3.7-3.5 5-.7L8 1l2.2 4.2 5 .7-3.7 3.5 1 5z"/>
+                </svg>
+                Watchlist
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Hero copy */}
         <div style={{ position: 'absolute', inset: 0, zIndex: 4, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 56px', maxWidth: 780 }}>
           <div style={{ fontSize: 11, letterSpacing: '.25em', color: '#f4a261', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 12, fontFamily: 'monospace' }}>
             <span style={{ width: 7, height: 7, borderRadius: 999, background: '#f4a261', boxShadow: '0 0 12px #f4a261', display: 'inline-block' }}/>
-            TONIGHT'S PREVIEW · {String(filmIdx + 1).padStart(2, '0')} / {String(HERO_FILMS.length).padStart(2, '0')}
+            TONIGHT&apos;S PREVIEW · {String(filmIdx + 1).padStart(2, '0')} / {String(HERO_FILMS.length).padStart(2, '0')}
           </div>
           <h1 key={p.title + filmIdx} style={{
             fontSize: 'clamp(56px, 7vw, 96px)', lineHeight: 0.92, margin: 0,
@@ -92,7 +115,7 @@ export function InputStage({ onSubmit }: Props) {
             <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: 'linear-gradient(135deg, #f4a261, #e76f8f)', color: '#1a0e1d', fontFamily: 'monospace' }}>{p.match}% MATCH</span>
           </div>
           <p key={'q' + filmIdx} style={{ fontSize: 22, color: '#f4a261', maxWidth: 540, marginTop: 28, lineHeight: 1.4, fontFamily: 'Georgia, serif', fontStyle: 'italic', animation: 'heroIn 900ms 160ms cubic-bezier(.2,.7,.2,1) both' }}>
-            "{p.why}"
+            {'"'}{p.why}{'"'}
           </p>
           <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14, fontWeight: 300, maxWidth: 480, marginTop: 22 }}>
             One of six waiting for you tonight. Scroll to set the scene — or roll now.
@@ -215,4 +238,14 @@ function Field({ label, title, subtitle, children }: { label: string; title: str
       {children}
     </div>
   )
+}
+
+const topNavBtn: React.CSSProperties = {
+  padding: '7px 14px', borderRadius: 999,
+  border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(0,0,0,0.35)',
+  backdropFilter: 'blur(8px)',
+  color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: 500,
+  fontFamily: 'Inter Tight, sans-serif', cursor: 'pointer',
+  display: 'inline-flex', alignItems: 'center', gap: 6,
+  transition: 'color 200ms, border-color 200ms',
 }

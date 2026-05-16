@@ -57,5 +57,26 @@ SessionSchema.index({ userId: 1, createdAt: -1 })
 export const Session =
   mongoose.models.Session ?? mongoose.model('Session', SessionSchema)
 
+// Watchlist schema
+const WatchlistSchema = new mongoose.Schema({
+  userId:   { type: String, required: true, index: true },
+  movieId:  { type: Number, required: true },
+  title:    { type: String, required: true },
+  year:     Number,
+  poster:   String,
+  backdrop: String,
+  genres:   [String],
+  rating:   Number,
+  runtime:  Number,
+  overview: String,
+  addedAt:  { type: Date, default: Date.now },
+})
+WatchlistSchema.index({ userId: 1, movieId: 1 }, { unique: true })
+WatchlistSchema.index({ userId: 1, addedAt: -1 })
+
+export const Watchlist =
+  mongoose.models.Watchlist ?? mongoose.model('Watchlist', WatchlistSchema)
+
 export type RecommendationDoc = mongoose.InferSchemaType<typeof RecommendationSchema>
 export type SessionDoc        = mongoose.InferSchemaType<typeof SessionSchema>
+export type WatchlistDoc      = mongoose.InferSchemaType<typeof WatchlistSchema>

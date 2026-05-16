@@ -3,18 +3,21 @@ import { InputStage }    from './components/InputStage'
 import { LoadingStage }  from './components/LoadingStage'
 import { ResultsStage }  from './components/ResultsStage'
 import { DetailOverlay } from './components/DetailOverlay'
+import { HistoryPage }   from './components/HistoryPage'
+import { WatchlistPage } from './components/WatchlistPage'
 import { getUserId }     from './utils/userId'
-import { postRecommend, type Movie, type RecommendRequest } from './api/client'
+import { postRecommend, lookupMovie, type Movie, type RecommendRequest } from './api/client'
 
-type Stage = 'input' | 'loading' | 'results'
+type Stage = 'input' | 'loading' | 'results' | 'history' | 'watchlist'
 type Params = Omit<RecommendRequest, 'userId'>
 
 export default function App() {
-  const [stage, setStage] = useState<Stage>('input')
+  const [stage, setStage]   = useState<Stage>('input')
   const [params, setParams] = useState<Params | null>(null)
   const [movies, setMovies] = useState<Movie[]>([])
-  const [open, setOpen] = useState<Movie | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [open, setOpen]         = useState<Movie | null>(null)
+  const [lookingUp, setLookingUp] = useState(false)
+  const [error, setError]       = useState<string | null>(null)
 
   const handleSubmit = async (p: Params) => {
     setParams(p)
@@ -37,6 +40,15 @@ export default function App() {
     }
   }
 
+  const handleSimilarOpen = async (tmdbId: number) => {
+    if (lookingUp) return
+    setOpen(null)          // close current overlay
+    setLookingUp(true)
+    const movie = await lookupMovie(tmdbId).catch(() => null)
+    setLookingUp(false)
+    if (movie) setOpen(movie)
+  }
+
   const handleReset = () => {
     setStage('input')
     setMovies([])
@@ -48,7 +60,11 @@ export default function App() {
     <>
       {stage === 'input' && (
         <>
-          <InputStage onSubmit={handleSubmit} />
+          <InputStage
+            onSubmit={handleSubmit}
+            onHistory={() => setStage('history')}
+            onWatchlist={() => setStage('watchlist')}
+          />
           {error && (
             <div style={{
               position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
@@ -71,10 +87,40 @@ export default function App() {
           movies={movies}
           onReset={handleReset}
           onOpen={setOpen}
+          onHistory={() => { setOpen(null); setStage('history') }}
+          onWatchlist={() => { setOpen(null); setStage('watchlist') }}
         />
       )}
 
-      {open && <DetailOverlay movie={open} onClose={() => setOpen(null)} />}
+      {stage === 'history' && (
+        <HistoryPage onBack={() => setStage(movies.length > 0 ? 'results' : 'input')} />
+      )}
+
+      {stage === 'watchlist' && (
+        <WatchlistPage onBack={() => setStage(movies.length > 0 ? 'results' : 'input')} />
+      )}
+
+      {open && (
+        <DetailOverlay
+          movie={open}
+          onClose={() => setOpen(null)}
+          onSimilarOpen={(id) => handleSimilarOpen(id)}
+        />
+      )}
+
+      {/* Lookup spinner — shown while fetching a "More Like This" film */}
+      {lookingUp && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(8,6,5,0.6)',
+          backdropFilter: 'blur(12px)', zIndex: 90,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <svg width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="rgba(244,162,97,0.7)" strokeWidth="1.5" style={{ animation: 'spin 1s linear infinite' }}>
+            <circle cx="8" cy="8" r="6" strokeOpacity="0.2"/>
+            <path d="M8 2a6 6 0 0 1 6 6" strokeLinecap="round"/>
+          </svg>
+        </div>
+      )}
 
       {/* Global animation keyframes */}
       <style>{`
