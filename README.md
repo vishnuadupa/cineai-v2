@@ -23,7 +23,7 @@ No infinite scroll. No engagement algorithms. Six films, curated for this exact 
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 [![Cost](https://img.shields.io/badge/Monthly_Cost-$0-brightgreen?style=for-the-badge)](https://vercel.com)
-[![CI](https://img.shields.io/badge/CI-Lint_·_Typecheck_·_Test-blue?style=for-the-badge&logo=github-actions&logoColor=white)](.github/workflows/ci.yml)
+[![CI](https://github.com/vishnuadupa/cineai-v2/actions/workflows/ci.yml/badge.svg)](https://github.com/vishnuadupa/cineai-v2/actions/workflows/ci.yml)
 
 </div>
 
