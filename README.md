@@ -23,7 +23,7 @@ Fill in up to six signals on the way in:
 | 🔞 **Adult content** | Off by default, explicitly opt-in |
 
 ### 2. Gemini Reads Between the Lines
-Your signals get crafted into a rich, context-aware prompt and fired at **Google Gemini 2.5 Flash**. Gemini generates **9 film candidates** — each scored by emotional fit, kept tonally consistent with your liked films, and cross-checked against what it already recommended you in past sessions.
+Your signals get crafted into a rich, context-aware prompt and fired at **Google Gemini 2.0 Flash**. Gemini generates **9 film candidates** — each scored by emotional fit, kept tonally consistent with your liked films, and cross-checked against what it already recommended you in past sessions.
 
 ### 3. TMDB Verifies the Results
 Every Gemini suggestion gets looked up on **The Movie Database**. Real posters, real ratings, real cast and director data get attached. Films whose TMDB-verified genres don't match what you asked for get quietly filtered out. The best **6** make the cut.
@@ -58,7 +58,7 @@ No fake progress bars. The counter counts **up** from 0 — you see exactly how 
 Frontend      React 18 + TypeScript + Vite
 Styling       Tailwind CSS  (custom cinema dark-brown theme)
 State         Zustand
-AI            Google Gemini 2.5 Flash
+AI            Google Gemini 2.0 Flash
 Movie Data    TMDB API
 Database      MongoDB Atlas M0  (free forever, 512MB)
 Hosting       Vercel  (serverless functions + static CDN)
@@ -184,7 +184,7 @@ A few favourites:
 |---|---|
 | Vercel | Unlimited deployments, 100GB bandwidth/month |
 | MongoDB Atlas M0 | 512MB storage, forever free |
-| Gemini 2.5 Flash | 1,500 requests/day, 1M tokens/day |
+| Gemini 2.0 Flash | 1,500 requests/day, 15 RPM |
 | TMDB API | Unlimited requests |
 | GitHub Actions | Free on public repos |
 
