@@ -45,10 +45,17 @@ export default async function handler(
 
       res.status(200).json({
         sessions: sessions.map(s => ({
-          sessionId:       String(s._id),
-          createdAt:       s.createdAt,
-          input:           s.input,
-          recommendations: s.recommendations,
+          sessionId: String(s._id),
+          createdAt: s.createdAt,
+          input:     s.input,
+          recommendations: (s.recommendations ?? []).map(r => ({
+            title:  r.title,
+            year:   r.year,
+            // Schema stores as posterPath; normalise to poster for the frontend
+            poster: (r as unknown as Record<string, unknown>).posterPath ?? r.poster ?? null,
+            rating: r.rating ?? null,
+            genres: r.genres ?? [],
+          })),
         })),
       })
       return
