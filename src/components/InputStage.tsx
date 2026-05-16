@@ -8,23 +8,24 @@ import type { RecommendRequest } from '../api/client'
 type Params = Omit<RecommendRequest, 'userId'>
 
 interface Props {
-  onSubmit:    (p: Params) => void
-  onHistory?:  () => void
-  onWatchlist?: () => void
+  onSubmit:      (p: Params) => void
+  onHistory?:    () => void
+  onWatchlist?:  () => void
+  initialValues?: Params | null   // restored after a failed search
 }
 
-export function InputStage({ onSubmit, onHistory, onWatchlist }: Props) {
+export function InputStage({ onSubmit, onHistory, onWatchlist, initialValues }: Props) {
   const formRef = useRef<HTMLDivElement>(null)
   const [filmIdx, setFilmIdx] = useState(0)
   const [scrollY, setScrollY] = useState(0)
 
-  // Form state — matching design exactly
-  const [mood, setMood] = useState('melancholy')
-  const [genres, setGenres] = useState<string[]>(['Science Fiction', 'Drama'])
-  const [era, setEra] = useState('any')
-  const [adult, setAdult] = useState(false)
-  const [feeling, setFeeling] = useState('')
-  const [liked, setLiked] = useState<string[]>([])
+  // Form state — seeded from initialValues when returning after a failed search
+  const [mood, setMood]     = useState(initialValues?.mood    ?? 'melancholy')
+  const [genres, setGenres] = useState<string[]>(initialValues?.genres  ?? ['Science Fiction', 'Drama'])
+  const [era, setEra]       = useState(initialValues?.era     ?? 'any')
+  const [adult, setAdult]   = useState(initialValues?.adult   ?? false)
+  const [feeling, setFeeling] = useState(initialValues?.feeling ?? '')
+  const [liked, setLiked]   = useState<string[]>(initialValues?.liked   ?? [])
   const [likedInput, setLikedInput]   = useState('')
   const [feelingError, setFeelingError] = useState(false)
 

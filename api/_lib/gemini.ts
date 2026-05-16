@@ -12,8 +12,8 @@ const SYSTEM_PROMPT = `You are CineAI, a world-class film curator. Give thoughtf
 CRITICAL: Respond ONLY with valid JSON. No markdown, no backticks. Schema:
 {"recommendations":[{"title":"string","year":1997,"genres":["string"],"synopsis":"2 sentences","reasoning":"3-4 sentences","moodMatchScore":94}]}`
 
-// Gemini 2.0 Flash: 15 RPM / 1,500 RPD on free tier
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`
+// gemini-2.5-flash: confirmed working model for this project
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`
 
 function sleep(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms))

@@ -64,6 +64,7 @@ export default function App() {
             onSubmit={handleSubmit}
             onHistory={() => setStage('history')}
             onWatchlist={() => setStage('watchlist')}
+            initialValues={params}
           />
           {error && (
             <div style={{
