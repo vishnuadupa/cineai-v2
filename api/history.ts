@@ -48,11 +48,18 @@ export default async function handler(
           sessionId: String(s._id),
           createdAt: s.createdAt,
           input:     s.input,
-          recommendations: (s.recommendations ?? []).map(r => ({
+          recommendations: (s.recommendations ?? []).map((r: {
+            title:      string
+            year:       number
+            rating?:    number | null
+            genres?:    string[]
+            posterPath?: string | null
+            poster?:    string | null
+          }) => ({
             title:  r.title,
             year:   r.year,
-            // Schema stores as posterPath; normalise to poster for the frontend
-            poster: (r as unknown as Record<string, unknown>).posterPath ?? r.poster ?? null,
+            // Schema stores poster URL as posterPath — normalise for the frontend
+            poster: r.posterPath ?? r.poster ?? null,
             rating: r.rating ?? null,
             genres: r.genres ?? [],
           })),
