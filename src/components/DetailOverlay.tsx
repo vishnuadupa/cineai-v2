@@ -21,7 +21,8 @@ export function DetailOverlay({ movie, onClose, onSimilarOpen }: Props) {
   const [loadingDetails, setLoading]  = useState(false)
   const [watchlisted, setWatchlisted] = useState(false)
   const [wlPending, setWlPending]     = useState(false)
-  const [trailerOpen, setTrailerOpen] = useState(false)
+  const [trailerOpen, setTrailerOpen]       = useState(false)
+  const [trailerEmbedFailed, setEmbedFailed] = useState(false)
 
   // Keyboard close
   useEffect(() => {
@@ -30,6 +31,25 @@ export function DetailOverlay({ movie, onClose, onSimilarOpen }: Props) {
     document.body.style.overflow = 'hidden'
     return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
   }, [onClose])
+
+  // Listen for YouTube player error messages (embedding disabled = code 101/150/153)
+  useEffect(() => {
+    if (!trailerOpen) return
+    const handler = (e: MessageEvent) => {
+      try {
+        // YouTube posts either a JSON string or a plain object
+        const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data
+        if (data?.event === 'onError' && [100, 101, 105, 150, 153].includes(Number(data?.info))) {
+          setEmbedFailed(true)
+        }
+      } catch { /* ignore non-JSON messages */ }
+    }
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [trailerOpen])
+
+  // Reset embed error state when trailer is closed or movie changes
+  useEffect(() => { setEmbedFailed(false) }, [movie.id, trailerOpen])
 
   // Fetch extra details lazily
   useEffect(() => {
@@ -245,14 +265,50 @@ export function DetailOverlay({ movie, onClose, onSimilarOpen }: Props) {
 
           {/* Inline trailer embed */}
           {trailerOpen && details?.trailerKey && (
-            <div style={{ marginBottom: 24, borderRadius: 12, overflow: 'hidden', position: 'relative', paddingBottom: '56.25%', background: '#000' }}>
-              <iframe
-                src={`https://www.youtube-nocookie.com/embed/${details.trailerKey}?autoplay=1&rel=0`}
-                allow="autoplay; encrypted-media; picture-in-picture"
-                allowFullScreen
-                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }}
-                title={`${movie.title} trailer`}
-              />
+            <div style={{ marginBottom: 24 }}>
+              {trailerEmbedFailed ? (
+                /* Embedding disabled by uploader — show a clean fallback link */
+                <div style={{
+                  borderRadius: 12, padding: '20px 24px',
+                  background: 'rgba(231,76,60,0.07)', border: '1px solid rgba(231,76,60,0.2)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+                }}>
+                  <div>
+                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>
+                      The studio has disabled embedding for this trailer.
+                    </div>
+                    <a
+                      href={`https://www.youtube.com/watch?v=${details.trailerKey}`}
+                      target="_blank" rel="noopener noreferrer"
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 7,
+                        color: '#e74c3c', fontSize: 13, fontWeight: 600,
+                        fontFamily: 'Inter Tight, sans-serif', textDecoration: 'none',
+                      }}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M3 2.5l10 5.5-10 5.5V2.5z"/></svg>
+                      Watch on YouTube ↗
+                    </a>
+                  </div>
+                  <button
+                    onClick={() => { setTrailerOpen(false); setEmbedFailed(false) }}
+                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', fontSize: 18, lineHeight: 1, flexShrink: 0 }}
+                  >×</button>
+                </div>
+              ) : (
+                <div style={{ borderRadius: 12, overflow: 'hidden', position: 'relative', paddingBottom: '56.25%', background: '#000' }}>
+                  <iframe
+                    key={details.trailerKey}
+                    src={`https://www.youtube-nocookie.com/embed/${details.trailerKey}?rel=0&modestbranding=1&enablejsapi=1`}
+                    allow="encrypted-media; picture-in-picture; fullscreen"
+                    allowFullScreen
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }}
+                    title={`${movie.title} trailer`}
+                    onError={() => setEmbedFailed(true)}
+                  />
+                  {/* YouTube doesn't fire onError for embed restrictions — we detect via postMessage */}
+                </div>
+              )}
             </div>
           )}
 
