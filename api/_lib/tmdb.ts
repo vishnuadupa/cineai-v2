@@ -170,8 +170,13 @@ export async function fetchMovieById(tmdbId: number): Promise<EnrichedMovie | nu
   }
 }
 
-/** Looks up each liked title on TMDB and pulls its "similar movies" — grounds the LLM's picks in real catalog data instead of pure recall. */
-export async function getGroundingCandidates(likedTitles: string[]): Promise<string[]> {
+/**
+ * Looks up each liked title on TMDB and pulls its keywords (e.g. "biography", "entrepreneur",
+ * "based on a true story") — grounds the LLM in the actual subject matter of what the user loves,
+ * instead of TMDB's genre/popularity-based "similar movies" (too noisy — a niche biopic's "similar"
+ * list is just generic dramas with nothing thematically in common).
+ */
+export async function getGroundingKeywords(likedTitles: string[]): Promise<string[]> {
   const apiKey = process.env.TMDB_API_KEY
   if (!apiKey || likedTitles.length === 0) return []
 
@@ -183,20 +188,18 @@ export async function getGroundingCandidates(likedTitles: string[]): Promise<str
       const match = searchData.results?.[0]
       if (!match) return []
 
-      const similarRes = await fetch(`${TMDB_BASE}/movie/${match.id}/similar?api_key=${apiKey}&page=1`)
-      if (!similarRes.ok) return []
-      const similarData = await similarRes.json() as { results?: Array<{ title: string; release_date: string }> }
-      return (similarData.results ?? []).slice(0, 6).map(m =>
-        m.release_date ? `${m.title} (${m.release_date.split('-')[0]})` : m.title
-      )
+      const keywordsRes = await fetch(`${TMDB_BASE}/movie/${match.id}/keywords?api_key=${apiKey}`)
+      if (!keywordsRes.ok) return []
+      const keywordsData = await keywordsRes.json() as { keywords?: Array<{ name: string }> }
+      return (keywordsData.keywords ?? []).slice(0, 8).map(k => k.name)
     })
   )
 
-  const candidates = new Set<string>()
+  const keywords = new Set<string>()
   for (const r of perTitle) {
-    if (r.status === 'fulfilled') r.value.forEach(c => candidates.add(c))
+    if (r.status === 'fulfilled') r.value.forEach(k => keywords.add(k))
   }
-  return [...candidates].slice(0, 30)
+  return [...keywords].slice(0, 20)
 }
 
 // Simple accent color from position

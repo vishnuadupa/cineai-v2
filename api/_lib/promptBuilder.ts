@@ -8,7 +8,7 @@ const ERA_MAP: Record<string, string> = {
   classics: 'released before 2000',
 }
 
-export function buildPrompt(request: RecommendRequest, groundingCandidates: string[] = []): string {
+export function buildPrompt(request: RecommendRequest, groundingKeywords: string[] = []): string {
   const { mood, genres, era, adult, feeling, liked, recentTitles } = request
 
   // M1 fix: sanitize free text before injecting into the prompt
@@ -30,8 +30,8 @@ export function buildPrompt(request: RecommendRequest, groundingCandidates: stri
     ? `MUST belong to: ${genres.join(', ')}`
     : 'no genre constraint — recommend freely'
 
-  const groundingSection = groundingCandidates.length > 0
-    ? `\n\n════════════════════════════════\nGROUNDED CANDIDATES — real films similar to what the user already loves (from TMDB)\n════════════════════════════════\n${groundingCandidates.join(', ')}\n\nPrefer picks from this list when they satisfy the constraints above. You may add other real, existing films to reach 9, but never invent a title — every recommendation must be a real film.`
+  const groundingSection = groundingKeywords.length > 0
+    ? `\n\n════════════════════════════════\nSUBJECT MATTER — real themes/keywords TMDB associates with the films the user loves\n════════════════════════════════\n${groundingKeywords.join(', ')}\n\nUse these to infer what the liked films are actually ABOUT (e.g. "entrepreneur", "biography", "based on a true story" means they want real-world stories, not just a similar mood). Recommendations should match this subject matter where it doesn't conflict with the hard constraints above.`
     : ''
 
   return `You are a world-class film curator. Return EXACTLY 9 film recommendations as JSON.
