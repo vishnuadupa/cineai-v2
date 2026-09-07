@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { getRecommendations }  from './_lib/openrouter'
-import { enrichWithTMDB, type EnrichedMovie } from './_lib/tmdb'
+import { streamRecommendations }  from './_lib/openrouter'
+import { enrichOneWithTMDB, type EnrichedMovie } from './_lib/tmdb'
 import { buildPrompt, type RecommendRequest } from './_lib/promptBuilder'
 import { makeRateLimiter, getIp } from './_lib/rateLimit'
 
@@ -27,48 +27,29 @@ const GENRE_AFFINITIES: Record<string, string[]> = {
   'Documentary':      ['History', 'Music'],
 }
 
-function filterAndTrim(
-  films: EnrichedMovie[],
-  requestedGenres: string[],
-  adult: boolean
-): EnrichedMovie[] {
-  let results = films
-
-  if (requestedGenres.length > 0) {
-    // Build affinity set for fallback (adjacent genres e.g. Action→Adventure)
-    const affinities = new Set<string>()
-    requestedGenres.forEach(g => {
-      const related = GENRE_AFFINITIES[g] ?? []
-      related.forEach(r => affinities.add(r))
-    })
-
-    results = results.filter(film => {
-      if (film.genres.length === 0) return true // no TMDB data — give benefit of doubt
-
-      // PRIMARY: film must have at least one of the user's exact requested genres
-      const directMatch = film.genres.some(g => requestedGenres.includes(g))
-      if (directMatch) return true
-
+function passesFilter(film: EnrichedMovie, requestedGenres: string[], adult: boolean): boolean {
+  if (requestedGenres.length > 0 && film.genres.length > 0) {
+    // PRIMARY: film must have at least one of the user's exact requested genres
+    const directMatch = film.genres.some(g => requestedGenres.includes(g))
+    if (!directMatch) {
       // SECONDARY: allow affinity genres ONLY if they don't contradict the request
       // e.g. user wants Horror → Thriller is fine. But Animation→live action Family is NOT.
+      const affinities = new Set<string>()
+      requestedGenres.forEach(g => (GENRE_AFFINITIES[g] ?? []).forEach(r => affinities.add(r)))
       const affinityMatch = film.genres.some(g => affinities.has(g))
 
       // Block affinity-only matches when user picked a format-defining genre
       // (Animation, Documentary) — these are specific formats, not just themes
       const formatGenres = ['Animation', 'Documentary']
       const userPickedFormat = requestedGenres.some(g => formatGenres.includes(g))
-      if (userPickedFormat) return false // must be exact match for format genres
-
-      return affinityMatch
-    })
+      if (userPickedFormat || !affinityMatch) return false
+    }
   }
 
   // Adult toggle: only strip TMDB-tagged explicit "Adult" content when adult=false
-  if (!adult) {
-    results = results.filter(film => !film.genres.includes('Adult'))
-  }
+  if (!adult && film.genres.includes('Adult')) return false
 
-  return results.slice(0, 6)
+  return true
 }
 
 // 10 recommend requests per IP per hour (LLM calls are expensive)
@@ -107,6 +88,8 @@ function isValidRequest(body: unknown): body is RecommendRequest {
   )
 }
 
+const MAX_ACCEPTED = 6
+
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   setCORS(res)
   if (req.method === 'OPTIONS') { res.status(200).end(); return }
@@ -125,21 +108,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
   const request = req.body as RecommendRequest
 
+  // Streams movies down as newline-delimited JSON as soon as each is enriched and
+  // passes the genre/adult filter — the client renders cards as they arrive instead
+  // of waiting ~10-15s for the LLM to finish generating all candidates.
+  let streaming = false
   try {
     const userPrompt = buildPrompt(request)
-    // LLM returns 9 candidates
-    const llmResponse = await getRecommendations(userPrompt)
-    // TMDB enriches all 9 with real genres, ratings, posters
-    const enriched = await enrichWithTMDB(llmResponse.recommendations)
-    // Filter by TMDB genres vs what user actually asked for, then trim to 6
-    const filtered = filterAndTrim(enriched, request.genres, request.adult)
+    let index = 0
+    let accepted = 0
 
-    res.status(200).json({ recommendations: filtered })
+    for await (const rec of streamRecommendations(userPrompt)) {
+      if (accepted >= MAX_ACCEPTED) break
+
+      const movie = await enrichOneWithTMDB(rec, index++)
+      if (!passesFilter(movie, request.genres, request.adult)) continue
+
+      if (!streaming) {
+        res.writeHead(200, { 'Content-Type': 'application/x-ndjson; charset=utf-8' })
+        streaming = true
+      }
+      res.write(JSON.stringify(movie) + '\n')
+      accepted++
+    }
+
+    if (!streaming) res.writeHead(200, { 'Content-Type': 'application/x-ndjson; charset=utf-8' })
+    res.end()
 
   } catch (err: unknown) {
     const error = err as Error & { status?: number }
     // L3 fix: log message only, no stack trace with file paths
     console.error('RECOMMEND ERROR:', error.message)
+    if (streaming) { res.end(); return } // already sent partial results — just close
+
     if (error.status === 429) { res.status(429).json({ error: 'rate_limit', message: 'Too many requests' }); return }
     if (error.status === 503) { res.status(503).json({ error: 'service_unavailable', message: 'Model provider is overloaded' }); return }
     // H2 fix: never leak internal error.message to the client

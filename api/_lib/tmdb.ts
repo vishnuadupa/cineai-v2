@@ -173,85 +173,62 @@ export async function fetchMovieById(tmdbId: number): Promise<EnrichedMovie | nu
 // Simple accent color from position
 const ACCENTS = ['#d2691e','#c8884c','#7a8a8e','#8b7a6e','#6a8a7a','#c47a6b']
 
-export async function enrichWithTMDB(recommendations: LLMRec[]): Promise<EnrichedMovie[]> {
+/** Enriches one LLM recommendation with real TMDB data — used to enrich as each streams in. */
+export async function enrichOneWithTMDB(rec: LLMRec, index: number): Promise<EnrichedMovie> {
   const apiKey = process.env.TMDB_API_KEY
-  if (!apiKey) {
-    return recommendations.map((r, i) => ({
-      id: null, title: r.title, year: r.year, runtime: null, rating: null,
-      match: r.moodMatchScore, genres: r.genres, director: null, cast: [],
-      overview: r.synopsis, reason: r.reasoning, poster: null, backdrop: null, accent: ACCENTS[i % ACCENTS.length],
-    }))
-  }
+  const fallback = (): EnrichedMovie => ({
+    id: null, title: rec.title, year: rec.year, runtime: null, rating: null,
+    match: rec.moodMatchScore, genres: rec.genres, director: null, cast: [],
+    overview: rec.synopsis, reason: rec.reasoning, poster: null, backdrop: null, accent: ACCENTS[index % ACCENTS.length],
+  })
+  if (!apiKey) return fallback()
 
-  const results = await Promise.allSettled(
-    recommendations.map(async (rec, i): Promise<EnrichedMovie> => {
-      try {
-        // Search by title only (no year filter — more reliable)
-        const searchParams = new URLSearchParams({ api_key: apiKey, query: rec.title })
-        const searchRes = await fetch(`${TMDB_BASE}/search/movie?${searchParams}`)
-        const searchData = searchRes.ok
-          ? await searchRes.json() as { results: TMDBMovie[] }
-          : { results: [] }
+  try {
+    // Search by title only (no year filter — more reliable)
+    const searchParams = new URLSearchParams({ api_key: apiKey, query: rec.title })
+    const searchRes = await fetch(`${TMDB_BASE}/search/movie?${searchParams}`)
+    const searchData = searchRes.ok
+      ? await searchRes.json() as { results: TMDBMovie[] }
+      : { results: [] }
 
-        const tmdb = searchData.results?.[0] ?? null
+    const tmdb = searchData.results?.[0] ?? null
+    if (!tmdb) return fallback()
 
-        if (!tmdb) {
-          return {
-            id: null, title: rec.title, year: rec.year, runtime: null, rating: null,
-            match: rec.moodMatchScore, genres: rec.genres, director: null, cast: [],
-            overview: rec.synopsis, reason: rec.reasoning, poster: null, backdrop: null, accent: ACCENTS[i % ACCENTS.length],
-          }
-        }
+    // Fetch full details for runtime + credits
+    const [detailRes, creditsRes] = await Promise.allSettled([
+      fetch(`${TMDB_BASE}/movie/${tmdb.id}?api_key=${apiKey}`),
+      fetch(`${TMDB_BASE}/movie/${tmdb.id}/credits?api_key=${apiKey}`),
+    ])
 
-        // Fetch full details for runtime + credits
-        const [detailRes, creditsRes] = await Promise.allSettled([
-          fetch(`${TMDB_BASE}/movie/${tmdb.id}?api_key=${apiKey}`),
-          fetch(`${TMDB_BASE}/movie/${tmdb.id}/credits?api_key=${apiKey}`),
-        ])
+    const detail: TMDBMovie = detailRes.status === 'fulfilled' && detailRes.value.ok
+      ? await detailRes.value.json()
+      : tmdb
 
-        const detail: TMDBMovie = detailRes.status === 'fulfilled' && detailRes.value.ok
-          ? await detailRes.value.json()
-          : tmdb
+    const credits: TMDBCredits = creditsRes.status === 'fulfilled' && creditsRes.value.ok
+      ? await creditsRes.value.json()
+      : { crew: [], cast: [] }
 
-        const credits: TMDBCredits = creditsRes.status === 'fulfilled' && creditsRes.value.ok
-          ? await creditsRes.value.json()
-          : { crew: [], cast: [] }
+    const director = credits.crew.find(c => c.job === 'Director')?.name ?? null
+    const cast = credits.cast.slice(0, 3).map(c => c.name)
+    const genres = detail.genres?.map(g => g.name) ?? rec.genres
 
-        const director = credits.crew.find(c => c.job === 'Director')?.name ?? null
-        const cast = credits.cast.slice(0, 3).map(c => c.name)
-        const genres = detail.genres?.map(g => g.name) ?? rec.genres
-
-        return {
-          id:       detail.id,
-          title:    detail.title ?? rec.title,
-          year:     detail.release_date ? parseInt(detail.release_date.split('-')[0]) : rec.year,
-          runtime:  detail.runtime ?? null,
-          rating:   detail.vote_average ?? null,
-          match:    rec.moodMatchScore,
-          genres,
-          director,
-          cast,
-          overview: detail.overview || rec.synopsis,
-          reason:   rec.reasoning,
-          poster:   detail.poster_path   ? `${POSTER_BASE}${detail.poster_path}`   : null,
-          backdrop: detail.backdrop_path ? `${BACKDROP_BASE}${detail.backdrop_path}` : null,
-          accent:   ACCENTS[i % ACCENTS.length],
-        }
-      } catch {
-        return {
-          id: null, title: rec.title, year: rec.year, runtime: null, rating: null,
-          match: rec.moodMatchScore, genres: rec.genres, director: null, cast: [],
-          overview: rec.synopsis, reason: rec.reasoning, poster: null, backdrop: null, accent: ACCENTS[i % ACCENTS.length],
-        }
-      }
-    })
-  )
-
-  return results.map((s, i) =>
-    s.status === 'fulfilled' ? s.value : {
-      id: null, title: recommendations[i].title, year: recommendations[i].year, runtime: null, rating: null,
-      match: recommendations[i].moodMatchScore, genres: recommendations[i].genres, director: null, cast: [],
-      overview: recommendations[i].synopsis, reason: recommendations[i].reasoning, poster: null, backdrop: null, accent: ACCENTS[i % ACCENTS.length],
+    return {
+      id:       detail.id,
+      title:    detail.title ?? rec.title,
+      year:     detail.release_date ? parseInt(detail.release_date.split('-')[0]) : rec.year,
+      runtime:  detail.runtime ?? null,
+      rating:   detail.vote_average ?? null,
+      match:    rec.moodMatchScore,
+      genres,
+      director,
+      cast,
+      overview: detail.overview || rec.synopsis,
+      reason:   rec.reasoning,
+      poster:   detail.poster_path   ? `${POSTER_BASE}${detail.poster_path}`   : null,
+      backdrop: detail.backdrop_path ? `${BACKDROP_BASE}${detail.backdrop_path}` : null,
+      accent:   ACCENTS[index % ACCENTS.length],
     }
-  )
+  } catch {
+    return fallback()
+  }
 }

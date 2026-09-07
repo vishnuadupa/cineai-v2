@@ -88,7 +88,14 @@ export interface WatchlistItem {
 
 // ── API functions ───────────────────────────────────────────────────────────
 
-export async function postRecommend(body: RecommendRequest): Promise<{ sessionId: string; recommendations: Movie[] }> {
+/**
+ * Streams recommendations in as newline-delimited JSON — `onMovie` fires as each one
+ * arrives so the UI can render cards immediately instead of waiting for all of them.
+ */
+export async function postRecommend(
+  body: RecommendRequest,
+  onMovie: (movie: Movie) => void
+): Promise<{ sessionId: string; recommendations: Movie[] }> {
   const res = await fetch(`${BASE}/recommend`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -98,7 +105,28 @@ export async function postRecommend(body: RecommendRequest): Promise<{ sessionId
     const err = await res.json().catch(() => ({})) as { status?: number }
     throw Object.assign(new Error('API error'), { response: { status: res.status, ...err } })
   }
-  const data = await res.json() as { recommendations: Movie[] }
+  if (!res.body) throw new Error('No response body')
+
+  const reader  = res.body.getReader()
+  const decoder = new TextDecoder()
+  const movies: Movie[] = []
+  let buffer = ''
+
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+
+    let idx: number
+    while ((idx = buffer.indexOf('\n')) >= 0) {
+      const line = buffer.slice(0, idx).trim()
+      buffer = buffer.slice(idx + 1)
+      if (!line) continue
+      const movie = JSON.parse(line) as Movie
+      movies.push(movie)
+      onMovie(movie)
+    }
+  }
 
   const sessionId = crypto.randomUUID()
   addLocalSession({
@@ -110,12 +138,12 @@ export async function postRecommend(body: RecommendRequest): Promise<{ sessionId
       genres:        body.genres,
       recentWatches: body.liked,
     },
-    recommendations: data.recommendations.map(r => ({
+    recommendations: movies.map(r => ({
       title: r.title, year: r.year, poster: r.poster, rating: r.rating, genres: r.genres, reasoning: r.reason,
     })),
   })
 
-  return { sessionId, recommendations: data.recommendations }
+  return { sessionId, recommendations: movies }
 }
 
 export async function getHistory(limit = 20): Promise<{ sessions: Session[] }> {

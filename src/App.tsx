@@ -20,14 +20,19 @@ export default function App() {
 
   const handleSubmit = async (p: Params) => {
     setParams(p)
+    setMovies([])
     setStage('loading')
     window.scrollTo({ top: 0, behavior: 'auto' })
     setError(null)
+    let gotAny = false
     try {
-      const res = await postRecommend(p)
-      setMovies(res.recommendations)
-      setStage('results')
+      await postRecommend(p, (movie) => {
+        setMovies(prev => [...prev, movie])
+        if (!gotAny) { gotAny = true; setStage('results') }
+      })
+      if (!gotAny) setStage('results') // stream completed with zero matches — show the empty state, not an error
     } catch (err: unknown) {
+      if (gotAny) return // cards already showing — drop a trailing stream error rather than blowing away partial results
       const e = err as { response?: { status: number } }
       const msg = e.response?.status === 429
         ? 'We’re busy right now — please try again in a moment.'
