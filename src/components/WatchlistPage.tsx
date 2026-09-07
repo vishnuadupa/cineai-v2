@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { getWatchlist, removeFromWatchlist, type WatchlistItem } from '../api/client'
-import { getUserId } from '../utils/userId'
 import { Brand } from './CineLogo'
 
 interface Props {
@@ -13,7 +12,7 @@ export function WatchlistPage({ onBack }: Props) {
   const [removing, setRemoving] = useState<number | null>(null)
 
   useEffect(() => {
-    getWatchlist(getUserId())
+    getWatchlist()
       .then(r => setItems(r.items))
       .catch(() => setItems([]))
       .finally(() => setLoading(false))
@@ -21,7 +20,7 @@ export function WatchlistPage({ onBack }: Props) {
 
   const handleRemove = async (movieId: number) => {
     setRemoving(movieId)
-    await removeFromWatchlist(getUserId(), movieId).catch(() => null)
+    await removeFromWatchlist(movieId).catch(() => null)
     setItems(prev => prev.filter(i => i.movieId !== movieId))
     setRemoving(null)
   }

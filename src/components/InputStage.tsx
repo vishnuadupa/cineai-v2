@@ -5,7 +5,7 @@ import { ChipGroup } from './ChipGroup'
 import { HERO_FILMS, MOODS, GENRES, ERA_OPTIONS } from '../data/heroFilms'
 import type { RecommendRequest } from '../api/client'
 
-type Params = Omit<RecommendRequest, 'userId'>
+type Params = RecommendRequest
 
 interface Props {
   onSubmit:      (p: Params) => void

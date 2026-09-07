@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { getHistory, deleteHistory, type Session } from '../api/client'
-import { getUserId } from '../utils/userId'
 import { Brand } from './CineLogo'
 
 interface Props {
@@ -14,7 +13,7 @@ export function HistoryPage({ onBack }: Props) {
   const [cleared, setCleared]   = useState(false)
 
   useEffect(() => {
-    getHistory(getUserId(), 20)
+    getHistory(20)
       .then(r => setSessions(r.sessions))
       .catch(() => setSessions([]))
       .finally(() => setLoading(false))
@@ -23,7 +22,7 @@ export function HistoryPage({ onBack }: Props) {
   const handleClear = async () => {
     if (!confirm('Clear all your search history? This cannot be undone.')) return
     setClearing(true)
-    await deleteHistory(getUserId()).catch(() => null)
+    await deleteHistory().catch(() => null)
     setSessions([])
     setCleared(true)
     setClearing(false)

@@ -32,3 +32,5 @@ coverage/
 
 # MongoDB MCP Server (contains Atlas credentials)
 mcp.json
+
+.vercel

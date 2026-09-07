@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import type { Movie, MovieDetails } from '../api/client'
 import { getMovieDetails, addToWatchlist, removeFromWatchlist } from '../api/client'
-import { getUserId } from '../utils/userId'
 import { useWindowWidth } from '../utils/useWindowWidth'
 
 interface Props {
@@ -55,7 +54,7 @@ export function DetailOverlay({ movie, onClose, onSimilarOpen }: Props) {
   useEffect(() => {
     if (!movie.id) return
     setLoading(true)
-    getMovieDetails(movie.id, getUserId())
+    getMovieDetails(movie.id)
       .then(d => {
         setDetails(d)
         setWatchlisted(d.inWatchlist)
@@ -69,10 +68,10 @@ export function DetailOverlay({ movie, onClose, onSimilarOpen }: Props) {
     setWlPending(true)
     try {
       if (watchlisted) {
-        await removeFromWatchlist(getUserId(), movie.id)
+        await removeFromWatchlist(movie.id)
         setWatchlisted(false)
       } else {
-        await addToWatchlist(getUserId(), movie)
+        await addToWatchlist(movie)
         setWatchlisted(true)
       }
     } catch {

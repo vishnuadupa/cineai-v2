@@ -1,4 +1,4 @@
-// Shared types for the recommend pipeline (gemini → tmdb → promptBuilder → recommend).
+// Shared types for the recommend pipeline (openrouter → tmdb → promptBuilder → recommend).
 
 export interface LLMRecommendation {
   title:          string
@@ -10,17 +10,11 @@ export interface LLMRecommendation {
 }
 
 export interface RecommendRequest {
-  userId:   string
-  mood:     string
-  genres:   string[]
-  era:      string
-  adult:    boolean
-  feeling:  string
-  liked:    string[]
-}
-
-export interface HistorySession {
-  createdAt: Date | string
-  input: { freeText?: string; feeling?: string }
-  recommendations: Array<{ title: string }>
+  mood:         string
+  genres:       string[]
+  era:          string
+  adult:        boolean
+  feeling:      string
+  liked:        string[]
+  recentTitles: string[]  // titles from the client's local history — avoid repeating these
 }

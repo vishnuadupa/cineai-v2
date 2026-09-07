@@ -1,3 +1,6 @@
+import { getLocalHistory, addLocalSession, clearLocalHistory, getRecentTitles } from '../utils/localHistory'
+import { getLocalWatchlist, isInLocalWatchlist, addToLocalWatchlist, removeFromLocalWatchlist } from '../utils/localWatchlist'
+
 const BASE = '/api'
 
 export interface Movie {
@@ -18,7 +21,6 @@ export interface Movie {
 }
 
 export interface RecommendRequest {
-  userId:  string
   mood:    string
   genres:  string[]
   era:     string           // "any" | "new" | "2010s" | "classics"
@@ -90,46 +92,66 @@ export async function postRecommend(body: RecommendRequest): Promise<{ sessionId
   const res = await fetch(`${BASE}/recommend`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(body),
+    body:    JSON.stringify({ ...body, recentTitles: getRecentTitles() }),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({})) as { status?: number }
     throw Object.assign(new Error('API error'), { response: { status: res.status, ...err } })
   }
-  return res.json()
+  const data = await res.json() as { recommendations: Movie[] }
+
+  const sessionId = crypto.randomUUID()
+  addLocalSession({
+    sessionId,
+    createdAt: new Date().toISOString(),
+    input: {
+      freeText:      body.feeling,
+      mood:          body.mood,
+      genres:        body.genres,
+      recentWatches: body.liked,
+    },
+    recommendations: data.recommendations.map(r => ({
+      title: r.title, year: r.year, poster: r.poster, rating: r.rating, genres: r.genres, reasoning: r.reason,
+    })),
+  })
+
+  return { sessionId, recommendations: data.recommendations }
 }
 
-export async function getHistory(userId: string, limit = 20): Promise<{ sessions: Session[] }> {
-  const res = await fetch(`${BASE}/history?userId=${userId}&limit=${limit}`)
-  if (!res.ok) return { sessions: [] }
-  return res.json()
+export async function getHistory(limit = 20): Promise<{ sessions: Session[] }> {
+  return { sessions: getLocalHistory().slice(0, limit) }
 }
 
-export async function deleteHistory(userId: string): Promise<void> {
-  await fetch(`${BASE}/history?userId=${userId}`, { method: 'DELETE' })
+export async function deleteHistory(): Promise<void> {
+  clearLocalHistory()
 }
 
 const DETAIL_CACHE_KEY = (id: number) => `cineai_detail_${id}`
 const CACHE_TTL_MS = 10 * 60 * 1000 // 10 minutes
 
-export async function getMovieDetails(tmdbId: number, userId: string): Promise<MovieDetails> {
+export async function getMovieDetails(tmdbId: number): Promise<MovieDetails> {
+  type ServerDetails = Omit<MovieDetails, 'inWatchlist'>
+
   // Check sessionStorage cache first
+  let data: ServerDetails | null = null
   try {
     const cached = sessionStorage.getItem(DETAIL_CACHE_KEY(tmdbId))
     if (cached) {
-      const { data, ts } = JSON.parse(cached) as { data: MovieDetails; ts: number }
-      if (Date.now() - ts < CACHE_TTL_MS) return data
+      const { data: cachedData, ts } = JSON.parse(cached) as { data: ServerDetails; ts: number }
+      if (Date.now() - ts < CACHE_TTL_MS) data = cachedData
     }
   } catch { /* ignore storage errors */ }
 
-  const res = await fetch(`${BASE}/movie-details?tmdbId=${tmdbId}&userId=${encodeURIComponent(userId)}`)
-  if (!res.ok) return { providers: [], trailerKey: null, keywords: [], certification: null, similar: [], inWatchlist: false }
-  const data: MovieDetails = await res.json()
+  if (!data) {
+    const res = await fetch(`${BASE}/movie-details?tmdbId=${tmdbId}`)
+    data = res.ok
+      ? await res.json() as ServerDetails
+      : { providers: [], trailerKey: null, keywords: [], certification: null, similar: [] }
 
-  // Cache in sessionStorage (best-effort)
-  try { sessionStorage.setItem(DETAIL_CACHE_KEY(tmdbId), JSON.stringify({ data, ts: Date.now() })) } catch { /* ignore */ }
+    try { sessionStorage.setItem(DETAIL_CACHE_KEY(tmdbId), JSON.stringify({ data, ts: Date.now() })) } catch { /* ignore */ }
+  }
 
-  return data
+  return { ...data, inWatchlist: isInLocalWatchlist(tmdbId) }
 }
 
 export async function lookupMovie(tmdbId: number): Promise<Movie | null> {
@@ -138,31 +160,26 @@ export async function lookupMovie(tmdbId: number): Promise<Movie | null> {
   return res.json()
 }
 
-export async function addToWatchlist(userId: string, movie: Movie): Promise<void> {
-  await fetch(`${BASE}/watchlist`, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({
-      userId,
-      movieId:  movie.id,
-      title:    movie.title,
-      year:     movie.year,
-      poster:   movie.poster,
-      backdrop: movie.backdrop,
-      genres:   movie.genres,
-      rating:   movie.rating,
-      runtime:  movie.runtime,
-      overview: movie.overview,
-    }),
+export async function addToWatchlist(movie: Movie): Promise<void> {
+  if (movie.id == null) return
+  addToLocalWatchlist({
+    movieId:  movie.id,
+    title:    movie.title,
+    year:     movie.year,
+    poster:   movie.poster,
+    backdrop: movie.backdrop,
+    genres:   movie.genres,
+    rating:   movie.rating,
+    runtime:  movie.runtime,
+    overview: movie.overview,
+    addedAt:  new Date().toISOString(),
   })
 }
 
-export async function removeFromWatchlist(userId: string, movieId: number): Promise<void> {
-  await fetch(`${BASE}/watchlist?userId=${encodeURIComponent(userId)}&movieId=${movieId}`, { method: 'DELETE' })
+export async function removeFromWatchlist(movieId: number): Promise<void> {
+  removeFromLocalWatchlist(movieId)
 }
 
-export async function getWatchlist(userId: string): Promise<{ items: WatchlistItem[] }> {
-  const res = await fetch(`${BASE}/watchlist?userId=${encodeURIComponent(userId)}`)
-  if (!res.ok) return { items: [] }
-  return res.json()
+export async function getWatchlist(): Promise<{ items: WatchlistItem[] }> {
+  return { items: getLocalWatchlist() }
 }

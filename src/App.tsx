@@ -5,11 +5,10 @@ import { ResultsStage }  from './components/ResultsStage'
 import { DetailOverlay } from './components/DetailOverlay'
 import { HistoryPage }   from './components/HistoryPage'
 import { WatchlistPage } from './components/WatchlistPage'
-import { getUserId }     from './utils/userId'
 import { postRecommend, lookupMovie, type Movie, type RecommendRequest } from './api/client'
 
 type Stage = 'input' | 'loading' | 'results' | 'history' | 'watchlist'
-type Params = Omit<RecommendRequest, 'userId'>
+type Params = RecommendRequest
 
 export default function App() {
   const [stage, setStage]   = useState<Stage>('input')
@@ -25,7 +24,7 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'auto' })
     setError(null)
     try {
-      const res = await postRecommend({ ...p, userId: getUserId() })
+      const res = await postRecommend(p)
       setMovies(res.recommendations)
       setStage('results')
     } catch (err: unknown) {

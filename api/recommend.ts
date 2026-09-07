@@ -1,11 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { connectDB, Session }  from './_lib/mongodb'
 import { getRecommendations }  from './_lib/openrouter'
 import { enrichWithTMDB, type EnrichedMovie } from './_lib/tmdb'
-import { buildPrompt, type RecommendRequest, type HistorySession } from './_lib/promptBuilder'
+import { buildPrompt, type RecommendRequest } from './_lib/promptBuilder'
 import { makeRateLimiter, getIp } from './_lib/rateLimit'
-
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 
 // Genres that naturally go together — so related picks don't get filtered out
 // e.g. user picks Action → Adventure/Thriller are fine. User picks Animation → Family/Fantasy are fine.
@@ -74,9 +71,6 @@ function filterAndTrim(
   return results.slice(0, 6)
 }
 
-// UUID v4 validation
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-
 // 10 recommend requests per IP per hour (LLM calls are expensive)
 const checkRateLimit = makeRateLimiter(10, 60 * 60 * 1000)
 
@@ -96,8 +90,6 @@ function isValidRequest(body: unknown): body is RecommendRequest {
   if (!body || typeof body !== 'object') return false
   const b = body as Record<string, unknown>
   return (
-    // Identity
-    typeof b.userId  === 'string' && UUID_RE.test(b.userId) &&
     // Enum fields — must match the UI values exactly; stops arbitrary prompt injection
     typeof b.mood    === 'string' && VALID_MOODS.has(b.mood) &&
     typeof b.era     === 'string' && VALID_ERAS.has(b.era) &&
@@ -109,7 +101,9 @@ function isValidRequest(body: unknown): body is RecommendRequest {
     Array.isArray(b.genres) && b.genres.length <= 17 &&
     (b.genres as unknown[]).every(g => typeof g === 'string' && g.length <= 50) &&
     Array.isArray(b.liked) && b.liked.length <= 10 &&
-    (b.liked as unknown[]).every(l => typeof l === 'string' && l.trim().length > 0 && l.length <= 100)
+    (b.liked as unknown[]).every(l => typeof l === 'string' && l.trim().length > 0 && l.length <= 100) &&
+    Array.isArray(b.recentTitles) && b.recentTitles.length <= 15 &&
+    (b.recentTitles as unknown[]).every(t => typeof t === 'string' && t.length <= 200)
   )
 }
 
@@ -132,10 +126,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   const request = req.body as RecommendRequest
 
   try {
-    await connectDB()
-
-    const history = await Session.find({ userId: request.userId }).sort({ createdAt: -1 }).limit(5).lean()
-    const userPrompt = buildPrompt(request, history as unknown as HistorySession[])
+    const userPrompt = buildPrompt(request)
     // LLM returns 9 candidates
     const llmResponse = await getRecommendations(userPrompt)
     // TMDB enriches all 9 with real genres, ratings, posters
@@ -143,29 +134,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     // Filter by TMDB genres vs what user actually asked for, then trim to 6
     const filtered = filterAndTrim(enriched, request.genres, request.adult)
 
-    const session = await Session.create({
-      userId:    request.userId,
-      expiresAt: new Date(Date.now() + THIRTY_DAYS_MS),
-      input: {
-        mood:          request.mood,
-        genres:        request.genres,
-        recentWatches: request.liked,
-        freeText:      request.feeling,
-      },
-      recommendations: filtered.map(r => ({
-        title:          r.title,
-        year:           r.year,
-        genres:         r.genres,
-        synopsis:       r.overview,
-        reasoning:      r.reason,
-        tmdbId:         r.id,
-        posterPath:     r.poster,
-        rating:         r.rating,
-        moodMatchScore: r.match,
-      })),
-    })
-
-    res.status(200).json({ sessionId: String(session._id), recommendations: filtered })
+    res.status(200).json({ recommendations: filtered })
 
   } catch (err: unknown) {
     const error = err as Error & { status?: number }
