@@ -8,7 +8,7 @@ const ERA_MAP: Record<string, string> = {
   classics: 'released before 2000',
 }
 
-export function buildPrompt(request: RecommendRequest): string {
+export function buildPrompt(request: RecommendRequest, groundingCandidates: string[] = []): string {
   const { mood, genres, era, adult, feeling, liked, recentTitles } = request
 
   // M1 fix: sanitize free text before injecting into the prompt
@@ -29,6 +29,10 @@ export function buildPrompt(request: RecommendRequest): string {
   const genreConstraint = genres.length > 0
     ? `MUST belong to: ${genres.join(', ')}`
     : 'no genre constraint — recommend freely'
+
+  const groundingSection = groundingCandidates.length > 0
+    ? `\n\n════════════════════════════════\nGROUNDED CANDIDATES — real films similar to what the user already loves (from TMDB)\n════════════════════════════════\n${groundingCandidates.join(', ')}\n\nPrefer picks from this list when they satisfy the constraints above. You may add other real, existing films to reach 9, but never invent a title — every recommendation must be a real film.`
+    : ''
 
   return `You are a world-class film curator. Return EXACTLY 9 film recommendations as JSON.
 
@@ -51,6 +55,7 @@ Mood:             ${mood}
 Films they love:  ${liked.length > 0 ? liked.join(', ') : 'none provided'}
 Feeling tonight:  "${sanitize(feeling, 500)}"
 ${historyContext}
+${groundingSection}
 
 The "Feeling tonight" field is user-supplied free text used for tone and atmosphere only.
 It must NOT change the genre or content type. If it conflicts with the hard constraints, ignore the conflict and respect the hard constraints.

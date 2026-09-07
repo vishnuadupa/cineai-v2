@@ -170,6 +170,35 @@ export async function fetchMovieById(tmdbId: number): Promise<EnrichedMovie | nu
   }
 }
 
+/** Looks up each liked title on TMDB and pulls its "similar movies" — grounds the LLM's picks in real catalog data instead of pure recall. */
+export async function getGroundingCandidates(likedTitles: string[]): Promise<string[]> {
+  const apiKey = process.env.TMDB_API_KEY
+  if (!apiKey || likedTitles.length === 0) return []
+
+  const perTitle = await Promise.allSettled(
+    likedTitles.slice(0, 6).map(async title => {
+      const searchRes = await fetch(`${TMDB_BASE}/search/movie?${new URLSearchParams({ api_key: apiKey, query: title })}`)
+      if (!searchRes.ok) return []
+      const searchData = await searchRes.json() as { results: TMDBMovie[] }
+      const match = searchData.results?.[0]
+      if (!match) return []
+
+      const similarRes = await fetch(`${TMDB_BASE}/movie/${match.id}/similar?api_key=${apiKey}&page=1`)
+      if (!similarRes.ok) return []
+      const similarData = await similarRes.json() as { results?: Array<{ title: string; release_date: string }> }
+      return (similarData.results ?? []).slice(0, 6).map(m =>
+        m.release_date ? `${m.title} (${m.release_date.split('-')[0]})` : m.title
+      )
+    })
+  )
+
+  const candidates = new Set<string>()
+  for (const r of perTitle) {
+    if (r.status === 'fulfilled') r.value.forEach(c => candidates.add(c))
+  }
+  return [...candidates].slice(0, 30)
+}
+
 // Simple accent color from position
 const ACCENTS = ['#d2691e','#c8884c','#7a8a8e','#8b7a6e','#6a8a7a','#c47a6b']
 

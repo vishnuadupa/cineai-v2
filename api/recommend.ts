@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { streamRecommendations }  from './_lib/openrouter'
-import { enrichOneWithTMDB, type EnrichedMovie } from './_lib/tmdb'
+import { enrichOneWithTMDB, getGroundingCandidates, type EnrichedMovie } from './_lib/tmdb'
 import { buildPrompt, type RecommendRequest } from './_lib/promptBuilder'
 import { makeRateLimiter, getIp } from './_lib/rateLimit'
 
@@ -113,7 +113,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   // of waiting ~10-15s for the LLM to finish generating all candidates.
   let streaming = false
   try {
-    const userPrompt = buildPrompt(request)
+    const groundingCandidates = await getGroundingCandidates(request.liked)
+    const userPrompt = buildPrompt(request, groundingCandidates)
     let index = 0
     let accepted = 0
 
