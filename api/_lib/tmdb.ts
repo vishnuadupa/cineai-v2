@@ -97,7 +97,6 @@ export async function getMovieDetails(tmdbId: number, country = 'US'): Promise<M
     trailerKey = trailer?.key ?? null
   }
 
-  // Keywords
   let keywords: string[] = []
   if (keywordsRes.status === 'fulfilled' && keywordsRes.value.ok) {
     const data = await keywordsRes.value.json() as { keywords?: Array<{ name: string }> }
@@ -128,7 +127,6 @@ export async function getMovieDetails(tmdbId: number, country = 'US'): Promise<M
   return { providers, trailerKey, keywords, certification, similar }
 }
 
-// Internal TMDB types for getMovieDetails
 interface TMDBProvider { provider_id: number; provider_name: string; logo_path: string }
 interface TMDBVideo    { site: string; type: string; official: boolean; key: string }
 
@@ -187,13 +185,7 @@ const ERA_RANGES: Record<string, { gte?: string; lte?: string }> = {
 
 export interface DiscoverCandidate { title: string; year: number }
 
-/**
- * Builds a real candidate pool from TMDB /discover/movie using the user's actual structured
- * constraints (genre, era, adult) plus keyword ids pulled from their liked films (e.g. "biography",
- * "entrepreneur") — replaces asking the LLM to invent titles from memory, which hallucinates
- * (fake/wrong-genre films) and TMDB's "similar movies" grounding, which was too noisy (genre/
- * popularity based — a niche biopic's "similar" list is just unrelated generic dramas).
- */
+/** Builds a real candidate pool from TMDB /discover/movie so the LLM ranks/writes about real films instead of inventing titles from memory. */
 export async function discoverCandidates(params: {
   genres: string[]; era: string; adult: boolean; likedTitles: string[]
 }): Promise<DiscoverCandidate[]> {
@@ -243,7 +235,6 @@ export async function discoverCandidates(params: {
   }))
 }
 
-// Simple accent color from position
 const ACCENTS = ['#d2691e','#c8884c','#7a8a8e','#8b7a6e','#6a8a7a','#c47a6b']
 
 /** Enriches one LLM recommendation with real TMDB data — used to enrich as each streams in. */

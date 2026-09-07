@@ -12,7 +12,6 @@ const ERA_MAP: Record<string, string> = {
 export function buildPrompt(request: RecommendRequest, candidates: DiscoverCandidate[] = []): string {
   const { mood, genres, era, adult, feeling, liked, recentTitles } = request
 
-  // M1 fix: sanitize free text before injecting into the prompt
   const sanitize = (s: string, max: number) => s.slice(0, max).replace(/["`\\]/g, "'")
 
   const historyContext = recentTitles.length > 0

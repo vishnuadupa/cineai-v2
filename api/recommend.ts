@@ -59,7 +59,6 @@ const checkRateLimit = makeRateLimiter(10, 60 * 60 * 1000)
 const VALID_MOODS = new Set(['melancholy','thrilled','curious','comfort','awe','unsettled','tender','playful'])
 const VALID_ERAS  = new Set(['any','new','2010s','classics'])
 
-// C2 fix: restrict CORS to own domain instead of wildcard
 function setCORS(res: VercelResponse): void {
   const origin = process.env.FRONTEND_URL ?? 'http://localhost:5173'
   res.setHeader('Access-Control-Allow-Origin', origin)
@@ -76,9 +75,7 @@ function isValidRequest(body: unknown): body is RecommendRequest {
     typeof b.era     === 'string' && VALID_ERAS.has(b.era) &&
     // Boolean — must be actual boolean, not a truthy string bypassing adult filter
     typeof b.adult   === 'boolean' &&
-    // Free text — non-empty and length-capped
     typeof b.feeling === 'string' && b.feeling.trim().length > 0 && b.feeling.length <= 500 &&
-    // Arrays — capped count and per-item length
     Array.isArray(b.genres) && b.genres.length <= 17 &&
     (b.genres as unknown[]).every(g => typeof g === 'string' && g.length <= 50) &&
     Array.isArray(b.liked) && b.liked.length <= 10 &&
@@ -139,13 +136,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
   } catch (err: unknown) {
     const error = err as Error & { status?: number }
-    // L3 fix: log message only, no stack trace with file paths
+    // log message only — no stack trace with file paths
     console.error('RECOMMEND ERROR:', error.message)
     if (streaming) { res.end(); return } // already sent partial results — just close
 
     if (error.status === 429) { res.status(429).json({ error: 'rate_limit', message: 'Too many requests' }); return }
     if (error.status === 503) { res.status(503).json({ error: 'service_unavailable', message: 'Model provider is overloaded' }); return }
-    // H2 fix: never leak internal error.message to the client
+    // never leak internal error.message to the client
     res.status(500).json({ error: 'internal_error', message: 'An unexpected error occurred' })
   }
 }
