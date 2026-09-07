@@ -54,7 +54,7 @@ function LeaderCircle({ elapsed }: { elapsed: number }) {
       <circle r={r - 64} fill="none" stroke="rgba(254,244,212,.18)" strokeWidth="1"/>
       <line x1={-r + 4} y1="0" x2={r - 4} y2="0" stroke="rgba(254,244,212,.45)" strokeWidth="1.5"/>
       <line x1="0" y1={-r + 4} x2="0" y2={r - 4} stroke="rgba(254,244,212,.45)" strokeWidth="1.5"/>
-      <g style={{ transformOrigin: 'center', animation: 'sweep 1s linear infinite' }}>
+      <g style={{ transformOrigin: '0px 0px', animation: 'sweep 1s linear infinite' }}>
         <path d={`M 0 0 L 0 ${-r} A ${r} ${r} 0 0 1 ${r * Math.sin(Math.PI / 2)} ${-r * Math.cos(Math.PI / 2)} Z`} fill="url(#wedgeGrad)"/>
       </g>
       <defs>
