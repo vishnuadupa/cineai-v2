@@ -20,14 +20,7 @@ export interface EnrichedMovie {
   accent:   string
 }
 
-interface GeminiRec {
-  title:          string
-  year:           number
-  genres:         string[]
-  synopsis:       string
-  reasoning:      string
-  moodMatchScore: number
-}
+import type { GeminiRecommendation as GeminiRec } from './types'
 
 interface TMDBMovie {
   id:            number

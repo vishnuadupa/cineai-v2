@@ -19,7 +19,7 @@ fi
 
 # ── 2. Check required keys are set ──────────────────────────────
 missing=0
-for var in MONGODB_URI GEMINI_API_KEY TMDB_API_KEY; do
+for var in MONGODB_URI OPENROUTER_API_KEY TMDB_API_KEY; do
   val=$(grep "^${var}=" .env.local | cut -d= -f2-)
   if [ -z "$val" ] || echo "$val" | grep -qE "your_|USERNAME|PASSWORD"; then
     echo "❌ $var is not set in .env.local"
@@ -76,7 +76,7 @@ while IFS='=' read -r key value; do
   [[ "$key" =~ ^#.*$ ]] && continue
   [ -z "$key" ] && continue
   # Only push the 4 required vars
-  if [[ "$key" =~ ^(MONGODB_URI|GEMINI_API_KEY|TMDB_API_KEY|FRONTEND_URL)$ ]]; then
+  if [[ "$key" =~ ^(MONGODB_URI|OPENROUTER_API_KEY|TMDB_API_KEY|FRONTEND_URL)$ ]]; then
     echo "$value" | vercel env add "$key" production 2>/dev/null || \
     echo "  (skipped $key — already set or needs manual add)"
   fi

@@ -24,7 +24,7 @@ export function ResultsStage({ params, movies, onReset, onOpen, onHistory, onWat
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             <Brand />
             <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', fontFamily: 'monospace' }}>
-              {movies.length} films · curated by gemini
+              {movies.length} films · curated by AI
             </span>
           </div>
           <h2 style={{ fontSize: 'clamp(36px, 5vw, 56px)', lineHeight: 1, margin: 0, letterSpacing: '-0.02em', fontFamily: 'Georgia, serif', fontWeight: 400 }}>

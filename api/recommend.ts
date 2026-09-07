@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { connectDB, Session }  from './_lib/mongodb'
-import { getRecommendations }  from './_lib/gemini'
+import { getRecommendations }  from './_lib/openrouter'
 import { enrichWithTMDB, type EnrichedMovie } from './_lib/tmdb'
 import { buildPrompt, type RecommendRequest, type HistorySession } from './_lib/promptBuilder'
 import { makeRateLimiter, getIp } from './_lib/rateLimit'
@@ -77,7 +77,7 @@ function filterAndTrim(
 // UUID v4 validation
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
-// 10 recommend requests per IP per hour (Gemini is expensive)
+// 10 recommend requests per IP per hour (LLM calls are expensive)
 const checkRateLimit = makeRateLimiter(10, 60 * 60 * 1000)
 
 // Allowlists for enum fields — stops arbitrary strings reaching the prompt
@@ -136,10 +136,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
     const history = await Session.find({ userId: request.userId }).sort({ createdAt: -1 }).limit(5).lean()
     const userPrompt = buildPrompt(request, history as unknown as HistorySession[])
-    // Gemini returns 9 candidates
-    const geminiResponse = await getRecommendations(userPrompt)
+    // LLM returns 9 candidates
+    const llmResponse = await getRecommendations(userPrompt)
     // TMDB enriches all 9 with real genres, ratings, posters
-    const enriched = await enrichWithTMDB(geminiResponse.recommendations)
+    const enriched = await enrichWithTMDB(llmResponse.recommendations)
     // Filter by TMDB genres vs what user actually asked for, then trim to 6
     const filtered = filterAndTrim(enriched, request.genres, request.adult)
 
@@ -149,32 +149,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       input: {
         mood:          request.mood,
         genres:        request.genres,
-        era:           request.era,
-        adult:         request.adult,
-        feeling:       request.feeling,
-        freeText:      request.feeling,
         recentWatches: request.liked,
-        liked:         request.liked,
+        freeText:      request.feeling,
       },
       recommendations: filtered.map(r => ({
         title:          r.title,
         year:           r.year,
-        runtime:        r.runtime,
-        rating:         r.rating,
-        match:          r.match,
         genres:         r.genres,
-        director:       r.director,
-        cast:           r.cast,
-        overview:       r.overview,
-        reason:         r.reason,
-        poster:         r.poster,
-        backdrop:       r.backdrop,
-        accent:         r.accent,
         synopsis:       r.overview,
         reasoning:      r.reason,
-        moodMatchScore: r.match,
-        posterPath:     r.poster,
         tmdbId:         r.id,
+        posterPath:     r.poster,
+        rating:         r.rating,
+        moodMatchScore: r.match,
       })),
     })
 
@@ -185,7 +172,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     // L3 fix: log message only, no stack trace with file paths
     console.error('RECOMMEND ERROR:', error.message)
     if (error.status === 429) { res.status(429).json({ error: 'rate_limit', message: 'Too many requests' }); return }
-    if (error.status === 503) { res.status(503).json({ error: 'service_unavailable', message: 'Gemini is overloaded' }); return }
+    if (error.status === 503) { res.status(503).json({ error: 'service_unavailable', message: 'Model provider is overloaded' }); return }
     // H2 fix: never leak internal error.message to the client
     res.status(500).json({ error: 'internal_error', message: 'An unexpected error occurred' })
   }

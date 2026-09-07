@@ -1,18 +1,5 @@
-export interface RecommendRequest {
-  userId:   string
-  mood:     string
-  genres:   string[]
-  era:      string
-  adult:    boolean
-  feeling:  string
-  liked:    string[]
-}
-
-export interface HistorySession {
-  createdAt: Date | string
-  input: { freeText?: string; feeling?: string }
-  recommendations: Array<{ title: string }>
-}
+import type { RecommendRequest, HistorySession } from './types'
+export type { RecommendRequest, HistorySession }
 
 const ERA_MAP: Record<string, string> = {
   any:      'any era',
