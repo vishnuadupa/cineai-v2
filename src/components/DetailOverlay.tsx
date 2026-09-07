@@ -35,6 +35,7 @@ export function DetailOverlay({ movie, onClose, onSimilarOpen }: Props) {
   useEffect(() => {
     if (!trailerOpen) return
     const handler = (e: MessageEvent) => {
+      if (e.origin !== 'https://www.youtube-nocookie.com') return
       try {
         // YouTube posts either a JSON string or a plain object
         const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data
