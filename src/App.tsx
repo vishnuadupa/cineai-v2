@@ -31,9 +31,9 @@ export default function App() {
     } catch (err: unknown) {
       const e = err as { response?: { status: number } }
       const msg = e.response?.status === 429
-        ? 'Gemini is busy right now — please try again in a moment.'
+        ? 'We’re busy right now — please try again in a moment.'
         : e.response?.status === 503
-        ? 'Gemini is overloaded — please try again shortly.'
+        ? 'The recommendation service is overloaded — please try again shortly.'
         : 'Something went wrong. Please try again.'
       setError(msg)
       setStage('input')

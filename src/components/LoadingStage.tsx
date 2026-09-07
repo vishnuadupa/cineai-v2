@@ -112,7 +112,7 @@ export function LoadingStage() {
   const statusLines = [
     "Threading the reel",
     "Reading your taste profile",
-    "Querying Gemini 2.5",
+    "Consulting the curator",
     "Cross-referencing TMDB",
     "Ranking by emotional fit",
     "Striking the print",

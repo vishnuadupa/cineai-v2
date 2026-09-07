@@ -312,13 +312,13 @@ export function DetailOverlay({ movie, onClose, onSimilarOpen }: Props) {
             </div>
           )}
 
-          {/* Gemini reasoning */}
+          {/* AI reasoning */}
           <div style={{
             padding: '16px 20px', background: 'rgba(244,162,97,0.06)',
             border: '1px solid rgba(244,162,97,0.18)', borderRadius: 12, marginBottom: 24,
           }}>
             <div style={{ color: '#f4a261', fontSize: 10, letterSpacing: '0.15em', marginBottom: 8, fontFamily: 'monospace' }}>
-              WHY GEMINI PICKED THIS
+              WHY THIS WAS PICKED
             </div>
             <div style={{ fontSize: 17, lineHeight: 1.45, color: 'rgba(255,255,255,0.88)', fontFamily: 'Georgia, serif', fontStyle: 'italic' }}>
               {'"'}{movie.reason}{'"'}

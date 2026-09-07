@@ -1,6 +1,6 @@
-import type { GeminiRecommendation } from './types'
-export type { GeminiRecommendation }
-export interface GeminiResponse { recommendations: GeminiRecommendation[] }
+import type { LLMRecommendation } from './types'
+export type { LLMRecommendation }
+export interface LLMResponse { recommendations: LLMRecommendation[] }
 
 const SYSTEM_PROMPT = `You are CineAI, a world-class film curator. Give thoughtful nuanced recommendations.
 CRITICAL: Respond ONLY with valid JSON. No markdown, no backticks. Schema:
@@ -17,7 +17,7 @@ function jitter(ms: number): number {
   return Math.floor(ms * (0.75 + Math.random() * 0.5))
 }
 
-export async function getRecommendations(userPrompt: string): Promise<GeminiResponse> {
+export async function getRecommendations(userPrompt: string): Promise<LLMResponse> {
   const apiKey = process.env.OPENROUTER_API_KEY
   if (!apiKey) throw new Error('OPENROUTER_API_KEY not set')
 
@@ -80,7 +80,7 @@ export async function getRecommendations(userPrompt: string): Promise<GeminiResp
     if (!rawText) throw new Error('OpenRouter returned empty response')
 
     const clean  = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim()
-    const parsed = JSON.parse(clean) as GeminiResponse
+    const parsed = JSON.parse(clean) as LLMResponse
     if (!Array.isArray(parsed.recommendations) || parsed.recommendations.length === 0)
       throw new Error('OpenRouter returned no recommendations')
 

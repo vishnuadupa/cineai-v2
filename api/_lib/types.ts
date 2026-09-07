@@ -1,6 +1,6 @@
 // Shared types for the recommend pipeline (gemini → tmdb → promptBuilder → recommend).
 
-export interface GeminiRecommendation {
+export interface LLMRecommendation {
   title:          string
   year:           number
   genres:         string[]

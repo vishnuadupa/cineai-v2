@@ -6,12 +6,12 @@ export interface Movie {
   year:     number
   runtime:  number | null
   rating:   number | null
-  match:    number          // 0–100 from Gemini
+  match:    number          // 0–100 from the LLM
   genres:   string[]
   director: string | null
   cast:     string[]
   overview: string
-  reason:   string          // Gemini reasoning
+  reason:   string          // LLM reasoning
   poster:   string | null
   backdrop: string | null
   accent:   string

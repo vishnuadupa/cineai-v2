@@ -162,7 +162,7 @@ export function InputStage({ onSubmit, onHistory, onWatchlist, initialValues }: 
             <span style={{ background: 'linear-gradient(135deg, #f4a261, #e76f8f, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontStyle: 'italic' }}>scene</span>.
           </h2>
           <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 17, marginTop: 18, maxWidth: 540, fontWeight: 300, lineHeight: 1.55 }}>
-            A few honest signals. Gemini reads between the lines and casts six films.
+            A few honest signals. Our curator reads between the lines and casts six films.
           </p>
         </div>
 
@@ -194,7 +194,7 @@ export function InputStage({ onSubmit, onHistory, onWatchlist, initialValues }: 
           </div>
         </Field>
 
-        <Field label="05" title="What are you feeling tonight?" subtitle="free text — extra context for Gemini">
+        <Field label="05" title="What are you feeling tonight?" subtitle="free text — extra context for the curator">
           <div style={{
             position: 'relative', borderRadius: 16, background: 'rgba(255,255,255,.025)', backdropFilter: 'blur(20px)', transition: 'border-color 200ms',
             border: feelingError ? '1px solid rgba(231,111,143,0.7)' : '1px solid rgba(255,255,255,0.1)',
@@ -209,7 +209,7 @@ export function InputStage({ onSubmit, onHistory, onWatchlist, initialValues }: 
           </div>
           {feelingError && (
             <div style={{ marginTop: 8, fontSize: 12, color: '#e76f8f', fontFamily: 'monospace', letterSpacing: '0.05em' }}>
-              ↑ Tell us what you&apos;re feeling — Gemini needs this to pick the right films.
+              ↑ Tell us what you&apos;re feeling — we need this to pick the right films.
             </div>
           )}
         </Field>

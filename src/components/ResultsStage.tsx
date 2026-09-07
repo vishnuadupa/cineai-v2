@@ -74,12 +74,12 @@ export function ResultsStage({ params, movies, onReset, onOpen, onHistory, onWat
           color: 'rgba(255,255,255,0.4)', fontSize: 13, lineHeight: 1.5,
           animation: 'fadeUp 500ms',
         }}>
-          Gemini found <strong style={{ color: 'rgba(255,255,255,0.65)' }}>{movies.length} film{movies.length !== 1 ? 's' : ''}</strong> that exactly match your genre and era — try broadening your filters for more results.
+          Found <strong style={{ color: 'rgba(255,255,255,0.65)' }}>{movies.length} film{movies.length !== 1 ? 's' : ''}</strong> that exactly match your genre and era — try broadening your filters for more results.
         </div>
       )}
 
       {/* Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 24, rowGap: 40 }}>
+      <div className="movie-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 24, rowGap: 40 }}>
         {movies.map((m, i) => <MovieCard key={m.id ?? i} movie={m} index={i} onOpen={onOpen}/>)}
       </div>
     </div>

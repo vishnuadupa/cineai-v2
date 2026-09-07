@@ -1,3 +1,5 @@
+import type { LLMRecommendation as LLMRec } from './types'
+
 const TMDB_BASE     = 'https://api.themoviedb.org/3'
 const POSTER_BASE   = 'https://image.tmdb.org/t/p/w500'
 const BACKDROP_BASE = 'https://image.tmdb.org/t/p/w1280'
@@ -9,18 +11,16 @@ export interface EnrichedMovie {
   year:     number
   runtime:  number | null
   rating:   number | null
-  match:    number          // from Gemini
+  match:    number          // from the LLM
   genres:   string[]
   director: string | null
   cast:     string[]
   overview: string
-  reason:   string          // from Gemini
+  reason:   string          // from the LLM
   poster:   string | null
   backdrop: string | null
   accent:   string
 }
-
-import type { GeminiRecommendation as GeminiRec } from './types'
 
 interface TMDBMovie {
   id:            number
@@ -158,12 +158,12 @@ export async function fetchMovieById(tmdbId: number): Promise<EnrichedMovie | nu
     year:     detail.release_date ? parseInt(detail.release_date.split('-')[0]) : 0,
     runtime:  detail.runtime ?? null,
     rating:   detail.vote_average ?? null,
-    match:    0,     // unknown — not from Gemini
+    match:    0,     // unknown — not from the LLM
     genres,
     director,
     cast,
     overview: detail.overview ?? '',
-    reason:   '',    // no Gemini reasoning for lookup results
+    reason:   '',    // no LLM reasoning for lookup results
     poster:   detail.poster_path   ? `${POSTER_BASE}${detail.poster_path}`   : null,
     backdrop: detail.backdrop_path ? `${BACKDROP_BASE}${detail.backdrop_path}` : null,
     accent:   ACCENTS[0],
@@ -173,7 +173,7 @@ export async function fetchMovieById(tmdbId: number): Promise<EnrichedMovie | nu
 // Simple accent color from position
 const ACCENTS = ['#d2691e','#c8884c','#7a8a8e','#8b7a6e','#6a8a7a','#c47a6b']
 
-export async function enrichWithTMDB(recommendations: GeminiRec[]): Promise<EnrichedMovie[]> {
+export async function enrichWithTMDB(recommendations: LLMRec[]): Promise<EnrichedMovie[]> {
   const apiKey = process.env.TMDB_API_KEY
   if (!apiKey) {
     return recommendations.map((r, i) => ({
