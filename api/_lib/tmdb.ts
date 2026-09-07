@@ -170,36 +170,75 @@ export async function fetchMovieById(tmdbId: number): Promise<EnrichedMovie | nu
   }
 }
 
+// TMDB's fixed movie genre ids — needed for /discover/movie (it takes ids, not names)
+const GENRE_IDS: Record<string, number> = {
+  'Action': 28, 'Adventure': 12, 'Animation': 16, 'Comedy': 35, 'Crime': 80,
+  'Documentary': 99, 'Drama': 18, 'Family': 10751, 'Fantasy': 14, 'History': 36,
+  'Horror': 27, 'Music': 10402, 'Mystery': 9648, 'Romance': 10749,
+  'Science Fiction': 878, 'TV Movie': 10770, 'Thriller': 53, 'War': 10752, 'Western': 37,
+}
+
+const ERA_RANGES: Record<string, { gte?: string; lte?: string }> = {
+  any:      {},
+  new:      { gte: '2020-01-01' },
+  '2010s':  { gte: '2010-01-01', lte: '2019-12-31' },
+  classics: { lte: '1999-12-31' },
+}
+
+export interface DiscoverCandidate { title: string; year: number }
+
 /**
- * Looks up each liked title on TMDB and pulls its keywords (e.g. "biography", "entrepreneur",
- * "based on a true story") — grounds the LLM in the actual subject matter of what the user loves,
- * instead of TMDB's genre/popularity-based "similar movies" (too noisy — a niche biopic's "similar"
- * list is just generic dramas with nothing thematically in common).
+ * Builds a real candidate pool from TMDB /discover/movie using the user's actual structured
+ * constraints (genre, era, adult) plus keyword ids pulled from their liked films (e.g. "biography",
+ * "entrepreneur") — replaces asking the LLM to invent titles from memory, which hallucinates
+ * (fake/wrong-genre films) and TMDB's "similar movies" grounding, which was too noisy (genre/
+ * popularity based — a niche biopic's "similar" list is just unrelated generic dramas).
  */
-export async function getGroundingKeywords(likedTitles: string[]): Promise<string[]> {
+export async function discoverCandidates(params: {
+  genres: string[]; era: string; adult: boolean; likedTitles: string[]
+}): Promise<DiscoverCandidate[]> {
   const apiKey = process.env.TMDB_API_KEY
-  if (!apiKey || likedTitles.length === 0) return []
+  if (!apiKey) return []
 
-  const perTitle = await Promise.allSettled(
-    likedTitles.slice(0, 6).map(async title => {
-      const searchRes = await fetch(`${TMDB_BASE}/search/movie?${new URLSearchParams({ api_key: apiKey, query: title })}`)
-      if (!searchRes.ok) return []
-      const searchData = await searchRes.json() as { results: TMDBMovie[] }
-      const match = searchData.results?.[0]
-      if (!match) return []
-
-      const keywordsRes = await fetch(`${TMDB_BASE}/movie/${match.id}/keywords?api_key=${apiKey}`)
-      if (!keywordsRes.ok) return []
-      const keywordsData = await keywordsRes.json() as { keywords?: Array<{ name: string }> }
-      return (keywordsData.keywords ?? []).slice(0, 8).map(k => k.name)
-    })
-  )
-
-  const keywords = new Set<string>()
-  for (const r of perTitle) {
-    if (r.status === 'fulfilled') r.value.forEach(k => keywords.add(k))
+  const keywordIds = new Set<number>()
+  if (params.likedTitles.length > 0) {
+    await Promise.allSettled(
+      params.likedTitles.slice(0, 6).map(async title => {
+        const searchRes = await fetch(`${TMDB_BASE}/search/movie?${new URLSearchParams({ api_key: apiKey, query: title })}`)
+        if (!searchRes.ok) return
+        const searchData = await searchRes.json() as { results: TMDBMovie[] }
+        const match = searchData.results?.[0]
+        if (!match) return
+        const kwRes = await fetch(`${TMDB_BASE}/movie/${match.id}/keywords?api_key=${apiKey}`)
+        if (!kwRes.ok) return
+        const kwData = await kwRes.json() as { keywords?: Array<{ id: number }> }
+        kwData.keywords?.slice(0, 6).forEach(k => keywordIds.add(k.id))
+      })
+    )
   }
-  return [...keywords].slice(0, 20)
+
+  const genreIds = params.genres.map(g => GENRE_IDS[g]).filter((id): id is number => id !== undefined)
+  const dateRange = ERA_RANGES[params.era] ?? {}
+
+  const query = new URLSearchParams({
+    api_key:            apiKey,
+    sort_by:            'popularity.desc',
+    'vote_count.gte':   '50',
+    include_adult:      String(params.adult),
+    page:               String(1 + Math.floor(Math.random() * 3)), // vary results across requests
+  })
+  if (genreIds.length > 0) query.set('with_genres', genreIds.join('|'))       // OR
+  if (keywordIds.size > 0) query.set('with_keywords', [...keywordIds].join('|')) // OR
+  if (dateRange.gte) query.set('primary_release_date.gte', dateRange.gte)
+  if (dateRange.lte) query.set('primary_release_date.lte', dateRange.lte)
+
+  const res = await fetch(`${TMDB_BASE}/discover/movie?${query}`)
+  if (!res.ok) return []
+  const data = await res.json() as { results?: Array<{ title: string; release_date: string }> }
+  return (data.results ?? []).slice(0, 20).map(m => ({
+    title: m.title,
+    year:  m.release_date ? parseInt(m.release_date.split('-')[0]) : 0,
+  }))
 }
 
 // Simple accent color from position

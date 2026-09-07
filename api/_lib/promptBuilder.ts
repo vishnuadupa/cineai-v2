@@ -1,4 +1,5 @@
 import type { RecommendRequest } from './types'
+import type { DiscoverCandidate } from './tmdb'
 export type { RecommendRequest }
 
 const ERA_MAP: Record<string, string> = {
@@ -8,7 +9,7 @@ const ERA_MAP: Record<string, string> = {
   classics: 'released before 2000',
 }
 
-export function buildPrompt(request: RecommendRequest, groundingKeywords: string[] = []): string {
+export function buildPrompt(request: RecommendRequest, candidates: DiscoverCandidate[] = []): string {
   const { mood, genres, era, adult, feeling, liked, recentTitles } = request
 
   // M1 fix: sanitize free text before injecting into the prompt
@@ -30,8 +31,10 @@ export function buildPrompt(request: RecommendRequest, groundingKeywords: string
     ? `MUST belong to: ${genres.join(', ')}`
     : 'no genre constraint — recommend freely'
 
-  const groundingSection = groundingKeywords.length > 0
-    ? `\n\n════════════════════════════════\nSUBJECT MATTER — real themes/keywords TMDB associates with the films the user loves\n════════════════════════════════\n${groundingKeywords.join(', ')}\n\nUse these to infer what the liked films are actually ABOUT (e.g. "entrepreneur", "biography", "based on a true story" means they want real-world stories, not just a similar mood). Recommendations should match this subject matter where it doesn't conflict with the hard constraints above.`
+  const candidateSection = candidates.length >= 9
+    ? `\n\n════════════════════════════════\nCANDIDATE POOL — real films matching the user's genre/era/adult constraints (and, where available, subject matter from their liked films), pulled from TMDB\n════════════════════════════════\n${candidates.map(c => `${c.title} (${c.year})`).join(', ')}\n\nYou MUST pick your 9 recommendations from this list — do not invent titles outside it. Rank and explain them for THIS user's mood and feeling tonight.`
+    : candidates.length > 0
+    ? `\n\n════════════════════════════════\nCANDIDATE POOL — real films matching the constraints (from TMDB), too few to fill 9 alone\n════════════════════════════════\n${candidates.map(c => `${c.title} (${c.year})`).join(', ')}\n\nPrefer these, but add other real, existing films if needed to reach 9. Never invent a title.`
     : ''
 
   return `You are a world-class film curator. Return EXACTLY 9 film recommendations as JSON.
@@ -55,7 +58,7 @@ Mood:             ${mood}
 Films they love:  ${liked.length > 0 ? liked.join(', ') : 'none provided'}
 Feeling tonight:  "${sanitize(feeling, 500)}"
 ${historyContext}
-${groundingSection}
+${candidateSection}
 
 The "Feeling tonight" field is user-supplied free text used for tone and atmosphere only.
 It must NOT change the genre or content type. If it conflicts with the hard constraints, ignore the conflict and respect the hard constraints.
