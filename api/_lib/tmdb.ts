@@ -224,7 +224,9 @@ export async function discoverCandidates(params: {
     api_key:            apiKey,
     sort_by:            'popularity.desc',
     'vote_count.gte':   '50',
-    include_adult:      String(params.adult),
+    // TMDB's "adult" means literal pornographic content — unrelated to this app's "adult" toggle
+    // (mature themes/NC-17/violence, see promptBuilder). Never wire the two together.
+    include_adult:      'false',
     page:               String(1 + Math.floor(Math.random() * 3)), // vary results across requests
   })
   if (genreIds.length > 0) query.set('with_genres', genreIds.join('|'))       // OR
