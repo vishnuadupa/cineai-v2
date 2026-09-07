@@ -38,7 +38,7 @@ D:\cineai-v2-full\
 │   ├── movie-lookup.ts            GET  /api/movie-lookup
 │   └── _lib/
 │       ├── openrouter.ts          OpenRouter streaming client + incremental JSON parser
-│       ├── tmdb.ts                TMDB enrichment, similar-movies grounding, detail fetch
+│       ├── tmdb.ts                TMDB enrichment, /discover candidate pool, detail fetch
 │       ├── promptBuilder.ts       Two-tier prompt construction
 │       ├── types.ts               Shared types across the recommend pipeline
 │       └── rateLimit.ts           Shared IP-based rate limiter
@@ -60,7 +60,7 @@ No `mongodb.ts`, `gemini.ts`, `userId.ts`, `history.ts`, or `watchlist.ts` API r
 ## What Changed, and Why (most recent first)
 
 - **Streaming `/api/recommend`** — was request/response (wait ~13s for all 9 candidates, enrich, filter, respond). Now streams OpenRouter's tokens, TMDB-enriches and filters each recommendation as its JSON completes, and sends NDJSON to the client as soon as each one's ready. First card renders in ~3-4s. Stops early once 6 pass the filter.
-- **TMDB-grounded "liked films"** — liked titles are looked up on TMDB first; their "similar movies" are fed into the prompt as preferred real candidates, so the model draws from TMDB's catalog instead of pure recall. Adds some latency up front (worth knowing given the streaming work above).
+- **TMDB `/discover`-generated candidates** — before the LLM runs, `/discover/movie` builds a real candidate pool from genre/era/adult filters, narrowed by keyword ids pulled from liked films (e.g. "biography", "entrepreneur"). The LLM ranks and writes reasoning for 9 of these instead of inventing titles from memory. (Earlier attempt used TMDB's "similar movies" for liked films — too noisy, a niche biopic's "similar" list is just unrelated generic dramas — replaced with discover + keywords.) Adds some latency up front (worth knowing given the streaming work above).
 - **MongoDB removed entirely** — there was no login and no cross-device story, so server-side persistence was pure liability (an outage there took down `/api/recommend` even though recommendations don't need a database). History and watchlist are now `localStorage`-only.
 - **Gemini → OpenRouter** — model provider swapped; `OPENROUTER_API_KEY` / `OPENROUTER_MODEL` replaced `GEMINI_API_KEY`.
 
