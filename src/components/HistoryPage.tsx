@@ -40,7 +40,7 @@ export function HistoryPage({ onBack }: Props) {
             Your search history
           </h2>
           <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 14, margin: '8px 0 0', fontWeight: 300 }}>
-            Sessions are stored locally and auto-expire after 30 days.
+            Sessions are stored in this browser only — the last 20 searches, no expiry.
           </p>
         </div>
         <button onClick={onBack} style={navBtnStyle}>

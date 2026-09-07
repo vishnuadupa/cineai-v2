@@ -1,173 +1,83 @@
-# HANDOFF.md — Session Resume File
-> Generated at end of session. Paste this file's contents at the start of the next session.
+# HANDOFF.md — Project State
+
+> This file previously described the original scaffolding session (May 2026). It's rewritten here
+> to reflect what's actually deployed — the project has since migrated providers, dropped its
+> database, and switched `/api/recommend` to a streaming response. See `README.md` for the full
+> user-facing writeup; this file is a terse internal reference.
 
 ---
 
-## MANAGER AGENT RESUME PROMPT
-
-Paste this verbatim to resume:
+## Current Stack
 
 ```
-You are the Manager Agent for movie-rec-engine. Resume from HANDOFF.md.
-
-PROJECT: /home/claude/movie-rec-engine
-GIT: 3 commits on main
-
-ALL CODE COMPLETE — project is ready for user to run locally and deploy.
-
-✅ Phase 1 Backend — DONE
-  - api/_lib/mongodb.ts, gemini.ts, tmdb.ts, promptBuilder.ts
-  - api/recommend.ts (POST), api/history.ts (GET + DELETE)
-
-✅ Phase 2 Frontend — DONE
-  - All 6 components, Zustand store, Axios client, App.tsx layout
-
-✅ Phase 3 Tests — DONE (37 tests total)
-  - api/__tests__/promptBuilder.test.ts  (8 tests)
-  - api/__tests__/gemini.test.ts         (6 tests)
-  - src/components/__tests__/MoodSelector.test.tsx     (8 tests)
-  - src/components/__tests__/GenrePicker.test.tsx      (8 tests)
-  - src/components/__tests__/RecommendationCard.test.tsx (15 tests)
-
-✅ Security audit — 10/10 PASS
-✅ Config — vercel.json, ci.yml, .gitignore, .env.example, README.md
-✅ scripts/deploy.sh — one-shot deploy script
-
-REMAINING — needs user action (real API keys required):
-❌ npm install  → user runs locally: cd project && npm install
-❌ Vercel deploy → user runs: bash scripts/deploy.sh
-❌ Set FRONTEND_URL in Vercel dashboard after first deploy
-❌ Push to GitHub → git remote add origin … && git push -u origin main
-
-NEXT TASK if another code session needed:
-  - ESLint config (.eslintrc.cjs) is missing — add it so npm run lint works
-  - Then: npm install && npm test && npm run build
-
-STACK REMINDER:
-  Backend:  Vercel Functions (Node 20 TS) · MongoDB Atlas M0 · Gemini Flash · TMDB
-  Frontend: React 18 · Vite · Tailwind (cinema dark tokens) · Zustand · Axios
-  Tests:    Vitest + @testing-library/react
-  Deploy:   Vercel hobby (free) — push to GitHub → auto-deploy
-  Cost:     $0/month
-
-DESIGN TOKENS (for any component work):
-  bg: #0F0F0F · surface: #1A1A1A · elevated: #262626
-  border: #2D2D2D · muted: #6B6B6B · text: #E8E8E8
-  accent: #F59E0B (amber) · success: #10B981 · danger: #EF4444
-  font-display: Playfair Display · font-sans: Inter
-
-SECURITY RULES (never break these):
-  - All secrets via process.env only
-  - No VITE_ prefix on secrets
-  - CORS: process.env.FRONTEND_URL not *
-  - .env.local in .gitignore ✓
-
-INSTRUCTIONS FOR NEXT SESSION:
-  Tell me to run: continue from HANDOFF.md, start with component tests
+Frontend:  React 18 · Vite · TypeScript · Zustand (UI state) · fetch (no axios)
+Backend:   Vercel Serverless Functions (Node, TypeScript)
+LLM:       OpenRouter — defaults to anthropic/claude-haiku-4.5 (env: OPENROUTER_MODEL)
+Movie data: TMDB v3
+Persistence: none server-side — history + watchlist live in browser localStorage
+Tests:     Vitest + @testing-library/react (no test files currently exist)
+Deploy:    Vercel, auto-deploy from GitHub main
+Cost:      $0 fixed — OpenRouter billed per token, everything else free-tier
 ```
 
----
-
-## File Tree (complete — as of this session)
+## File Tree (as of this session)
 
 ```
-/home/claude/movie-rec-engine/
+D:\cineai-v2-full\
 ├── .env.example
-├── .gitignore
 ├── .github/workflows/ci.yml
 ├── README.md
-├── HANDOFF.md                   ← this file
+├── HANDOFF.md                    ← this file
 ├── index.html
 ├── package.json
-├── postcss.config.js
-├── tailwind.config.js
-├── tsconfig.json
 ├── vercel.json
 ├── vite.config.ts
-├── public/favicon.svg
 ├── api/
-│   ├── recommend.ts
-│   ├── history.ts
-│   ├── _lib/
-│   │   ├── mongodb.ts
-│   │   ├── gemini.ts
-│   │   ├── tmdb.ts
-│   │   └── promptBuilder.ts
-│   └── __tests__/
-│       ├── promptBuilder.test.ts  (8 tests ✓)
-│       └── gemini.test.ts         (6 tests ✓)
+│   ├── recommend.ts               POST /api/recommend — streams NDJSON
+│   ├── movie-details.ts           GET  /api/movie-details
+│   ├── movie-lookup.ts            GET  /api/movie-lookup
+│   └── _lib/
+│       ├── openrouter.ts          OpenRouter streaming client + incremental JSON parser
+│       ├── tmdb.ts                TMDB enrichment, similar-movies grounding, detail fetch
+│       ├── promptBuilder.ts       Two-tier prompt construction
+│       ├── types.ts               Shared types across the recommend pipeline
+│       └── rateLimit.ts           Shared IP-based rate limiter
 └── src/
-    ├── main.tsx
-    ├── App.tsx
-    ├── index.css
-    ├── __tests__/setup.ts
-    ├── api/client.ts
+    ├── main.tsx, App.tsx, index.css
+    ├── api/client.ts               Typed API functions + NDJSON stream reader
     ├── store/useRecsStore.ts
     ├── utils/
-    │   ├── userId.ts
-    │   └── cn.ts
-    └── components/
-        ├── MoodSelector.tsx
-        ├── GenrePicker.tsx
-        ├── RecentWatchesInput.tsx
-        ├── RecommendationCard.tsx
-        ├── HistoryPanel.tsx
-        └── LoadingState.tsx
+    │   ├── localHistory.ts         History — localStorage, capped at 20 sessions
+    │   ├── localWatchlist.ts       Watchlist — localStorage
+    │   └── useWindowWidth.ts
+    └── components/                 InputStage, LoadingStage, ResultsStage, MovieCard,
+                                    DetailOverlay, HistoryPage, WatchlistPage, ChipGroup,
+                                    FixedBackdrop, CineLogo
 ```
+
+No `mongodb.ts`, `gemini.ts`, `userId.ts`, `history.ts`, or `watchlist.ts` API routes — all removed. No `axios` dependency — never was one in practice; `src/api/client.ts` has always used `fetch`.
+
+## What Changed, and Why (most recent first)
+
+- **Streaming `/api/recommend`** — was request/response (wait ~13s for all 9 candidates, enrich, filter, respond). Now streams OpenRouter's tokens, TMDB-enriches and filters each recommendation as its JSON completes, and sends NDJSON to the client as soon as each one's ready. First card renders in ~3-4s. Stops early once 6 pass the filter.
+- **TMDB-grounded "liked films"** — liked titles are looked up on TMDB first; their "similar movies" are fed into the prompt as preferred real candidates, so the model draws from TMDB's catalog instead of pure recall. Adds some latency up front (worth knowing given the streaming work above).
+- **MongoDB removed entirely** — there was no login and no cross-device story, so server-side persistence was pure liability (an outage there took down `/api/recommend` even though recommendations don't need a database). History and watchlist are now `localStorage`-only.
+- **Gemini → OpenRouter** — model provider swapped; `OPENROUTER_API_KEY` / `OPENROUTER_MODEL` replaced `GEMINI_API_KEY`.
+
+## Environment Variables (current)
+
+```
+OPENROUTER_API_KEY=...
+OPENROUTER_MODEL=anthropic/claude-haiku-4.5   # optional
+TMDB_API_KEY=...
+FRONTEND_URL=https://your-deployment.vercel.app
+```
+
+## Known Gaps
+
+- No test files exist despite `vitest`/`@testing-library` being installed — `npm run test` passes vacuously (`--passWithNoTests`).
+- `getGroundingCandidates` (TMDB similar-movies lookup) runs sequentially before the LLM call starts, partially offsetting the streaming latency win when `liked` is non-empty. Not wrong, just a tradeoff nobody's revisited yet.
 
 ---
 
-## What User Needs to Do (accounts + keys)
-
-Before `npm install` and deploy work, Vishnu needs:
-
-| Account | URL | Action |
-|---------|-----|--------|
-| MongoDB Atlas | cloud.mongodb.com | Create M0 cluster → DB user → whitelist 0.0.0.0/0 → copy URI |
-| Google AI Studio | aistudio.google.com | Get API key (free, no billing) |
-| TMDB | themoviedb.org/settings/api | Request developer API key (instant) |
-| GitHub | github.com | Create repo `movie-rec-engine`, push this code |
-| Vercel | vercel.com | Import GitHub repo → add 4 env vars → deploy |
-
-Then locally:
-```bash
-cd /home/claude/movie-rec-engine   # or wherever you cloned
-cp .env.example .env.local
-# fill in the 4 keys
-npm install
-npm run dev     # http://localhost:5173
-npm run test    # run test suite
-```
-
----
-
-## Git State
-
-```
-Branch: main
-Commits: 1
-Last: feat: complete project scaffold — Phase 1 backend + Phase 2 frontend
-Files: 33 files, 1809 insertions
-```
-
-To push to GitHub (once repo is created):
-```bash
-cd /home/claude/movie-rec-engine
-git remote add origin https://github.com/YOUR_USERNAME/movie-rec-engine.git
-git push -u origin main
-```
-
----
-
-## Phase Progress
-
-| Phase | Status | Tasks Done |
-|-------|--------|-----------|
-| 1 — Backend | ✅ DONE | 6/6 files + security gate |
-| 2 — Frontend | ✅ DONE | 11/11 files |
-| 3 — Tests | ✅ DONE | 37 tests across 5 files |
-| 4 — Deploy | ⏳ USER ACTION | Run `bash scripts/deploy.sh` |
-
----
-
-*Generated: 2026-05-14 | Resume by pasting the block above into a new chat*
+*Last updated: 2026-09-07*
